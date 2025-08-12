@@ -9,6 +9,11 @@ export default class CanvasDraw {
     this.ctx = ctx;
   }
 
+  setScreenSize(width: number, height: number) {
+    this.ctx.canvas.width = width;
+    this.ctx.canvas.height = height;
+  }
+
   clearScene() {
     this.ctx.fillStyle = "gray";
     this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);

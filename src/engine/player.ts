@@ -4,13 +4,6 @@ import { controls } from "./controls";
 export default class Player extends Character {
   constructor({ x, y, character, canvasDraw }: CharacterProps) {
     super({ x, y, character, canvasDraw });
-
-    this.x = x;
-    this.y = y;
-
-    // Properties for animation
-    this.isMoving = false;
-    this.direction = { x: 0, y: 0 };
   }
 
   update(deltaTime: number, keys: string[]) {
@@ -50,7 +43,7 @@ export default class Player extends Character {
       this.direction.y = moveY;
     }
 
-    if (this.collidesWith) {
+    if (this.isColliding) {
       moveX = 0;
       moveY = 0;
     }

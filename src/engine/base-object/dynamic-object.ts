@@ -1,41 +1,29 @@
 import { ObjectParts } from "../types";
+import { World } from "../world";
 import { BaseObject, type BaseObjectProps } from "./base-object";
 
 interface IDynamicObject extends BaseObject {
   speed: number;
-  texture: string;
   isMoving: boolean;
   direction: { x: number; y: number };
-  collidesWith: BaseObject | null;
   update(deltaTime: number, keys: string[]): void;
   calcMovement(deltaTime: number): { x: number; y: number };
-  isColliding(other: BaseObject, deltaTime: number): void;
+  isColliding: boolean;
+  checkColliding(other: BaseObject, deltaTime: number): void;
+  isReachingEdge(world: World, deltaTime: number): boolean;
 }
 
 export class DynamicObject extends BaseObject implements IDynamicObject {
   speed: number;
-  texture: string;
-  isMoving: boolean;
-  direction: { x: number; y: number };
-  collidesWith: BaseObject | null;
+
+  // Properties for animation
+  isMoving: boolean = false;
+  direction: { x: number; y: number } = { x: 0, y: 0 };
+
+  isColliding: boolean = false;
 
   constructor({ x, y, canvasDraw }: BaseObjectProps) {
     super({ x, y, canvasDraw });
-
-    this.canvasDraw = canvasDraw;
-
-    this.x = x;
-    this.y = y;
-    this.width = 0;
-    this.height = 0;
-    this.speed = 0; // pixels per second
-    this.texture = "41, 190, 80";
-
-    this.collidesWith = null;
-
-    // Properties for animation
-    this.isMoving = false;
-    this.direction = { x: 0, y: 0 };
   }
 
   update(_deltaTime: number, _keys: string[]) {}
@@ -49,13 +37,12 @@ export class DynamicObject extends BaseObject implements IDynamicObject {
     );
   }
 
-  render(_part?: ObjectParts) {
+  render(part?: ObjectParts) {
+    this.drawObject([this.x, this.y], part);
     // Draw direction indicator
     if (this.isMoving) {
       this.drawDirectionIndicator();
     }
-
-    this.drawObject([this.x, this.y]);
   }
 
   calcMovement(deltaTime: number) {
@@ -65,7 +52,7 @@ export class DynamicObject extends BaseObject implements IDynamicObject {
     };
   }
 
-  isColliding(other: BaseObject, deltaTime: number) {
+  checkColliding(other: BaseObject, deltaTime: number) {
     const movement = this.calcMovement(deltaTime);
 
     // Check only for the bottom part of the character.
@@ -76,5 +63,17 @@ export class DynamicObject extends BaseObject implements IDynamicObject {
       movement.y + this.height / 2 > other.y;
 
     return isMovementColliding;
+  }
+
+  isReachingEdge(world: World, deltaTime: number) {
+    const movement = this.calcMovement(deltaTime);
+    const worldBounds = world.getBounds();
+
+    return (
+      movement.x - this.width / 2 <= worldBounds.minX ||
+      movement.x + this.width / 2 > worldBounds.maxX ||
+      movement.y <= worldBounds.minY ||
+      movement.y + this.height / 2 > worldBounds.maxY
+    );
   }
 }

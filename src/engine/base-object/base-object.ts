@@ -4,6 +4,7 @@ import { ObjectParts } from "../types";
 export interface BaseObjectProps {
   x: number;
   y: number;
+  texture?: string;
   canvasDraw: CanvasDraw;
 }
 
@@ -28,14 +29,19 @@ export class BaseObject implements IBaseObject {
   height: number;
   texture: string;
 
-  constructor({ x, y, canvasDraw }: BaseObjectProps) {
+  constructor({
+    x,
+    y,
+    texture = "rgba(41, 190, 80)",
+    canvasDraw
+  }: BaseObjectProps) {
     this.canvasDraw = canvasDraw;
+    this.texture = texture;
 
     this.x = x;
     this.y = y;
-    this.width = 0;
-    this.height = 0;
-    this.texture = "41, 190, 80";
+    this.width = 65;
+    this.height = 65;
   }
 
   drawObject(position: [number, number], part?: ObjectParts) {
@@ -45,7 +51,7 @@ export class BaseObject implements IBaseObject {
         this.canvasDraw.drawBox(
           [position[0] - this.width / 2, position[1] - this.height / 2],
           [position[0] + this.width / 2, position[1]],
-          `rgba(${this.texture}, 1)`,
+          this.texture,
           true
         );
         break;
@@ -53,7 +59,7 @@ export class BaseObject implements IBaseObject {
         this.canvasDraw.drawBox(
           [position[0] - this.width / 2, position[1] + this.height / 2],
           [position[0] + this.width / 2, position[1]],
-          `rgba(${this.texture}, 0.7)`,
+          this.texture,
           true
         );
         break;
@@ -61,7 +67,7 @@ export class BaseObject implements IBaseObject {
         this.canvasDraw.drawBox(
           position,
           [position[0] + this.width, position[1] + this.height],
-          `rgba(${this.texture}, 1)`,
+          this.texture,
           true
         );
         break;
