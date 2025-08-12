@@ -68,10 +68,11 @@ export class DynamicObject extends BaseObject implements IDynamicObject {
   isColliding(other: BaseObject, deltaTime: number) {
     const movement = this.calcMovement(deltaTime);
 
+    // Check only for the bottom part of the character.
     const isMovementColliding =
       movement.x < other.x + other.width &&
       movement.x + this.width > other.x &&
-      movement.y < other.y + other.height / 2 &&
+      movement.y + this.height / 2 < other.y + other.height &&
       movement.y + this.height / 2 > other.y;
 
     return isMovementColliding;
