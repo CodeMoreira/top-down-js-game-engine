@@ -10,20 +10,14 @@ interface WorldProps {
 export class World {
   canvasDraw: CanvasDraw;
 
-  tiles: BaseObject[];
-  objects: BaseObject[];
-  tileSize: number;
-  worldWidth: number;
-  worldHeight: number;
+  tiles: BaseObject[] = [];
+  objects: BaseObject[] = [];
+  tileSize: number = 64;
+  worldWidth: number = 2000;
+  worldHeight: number = 2000;
 
   constructor({ canvasDraw }: WorldProps) {
     this.canvasDraw = canvasDraw;
-
-    this.tiles = [];
-    this.objects = [];
-    this.tileSize = 64;
-    this.worldWidth = 2000;
-    this.worldHeight = 2000;
 
     this.generateWorld();
   }
