@@ -1,60 +1,47 @@
-import { BaseObject, BaseObjectProps } from "./base-object/base-object";
-import { DynamicObject } from "./base-object/dynamic-object";
-import { Camera } from "./camera";
-import CanvasDraw from "./canvas-draw";
-import Character, { CharacterProps } from "./character";
-import Player from "./player";
+import type { CharacterProps } from "./objects/character";
+import { ObjectOptions } from "./types";
 import { World } from "./world";
 
-interface EngineProps {
-  player: Omit<CharacterProps, "canvasDraw">;
+interface EngineProps<ObjectOptionsGenericType extends ObjectOptions> {
+  objectOptions: ObjectOptionsGenericType;
+  map: Extract<keyof ObjectOptionsGenericType["tiles"], string>[][];
+  player: Omit<
+    CharacterProps<
+      Extract<keyof ObjectOptionsGenericType["characters"], string>
+    >,
+    "canvasDraw" | "CharacterBaseConfigs"
+  >;
 }
 
-export default class Engine {
-  private canvasDraw: CanvasDraw;
-
+export default class Engine<
+  ObjectOptionsGenericType extends ObjectOptions
+> extends World<ObjectOptionsGenericType> {
   private isRunning: boolean = false;
   private lastTime: number = 0;
   private deltaTime: number = 0;
   private keyPresses: string[] = [];
 
-  private staticObjects: BaseObject[] = [];
-  private dynamicObjects: DynamicObject[] = [];
-  private characters: Character[] = [];
-  private world: World;
-  private camera: Camera;
-  private player: Player;
-
-  private screenWidth: number;
-  private screenHeight: number;
-
-  constructor({ player }: EngineProps) {
-    this.screenWidth = window.innerWidth;
-    this.screenHeight = window.innerHeight;
-
-    // Create canvas
-    const canvas = document.createElement("canvas");
-    canvas.width = this.screenWidth;
-    canvas.height = this.screenHeight;
-    document.body.appendChild(canvas);
-
-    // Get context
-    const ctx = canvas.getContext("2d")!;
-
-    this.canvasDraw = new CanvasDraw({ ctx });
-
-    this.world = new World({ canvasDraw: this.canvasDraw });
-
-    this.camera = new Camera({
-      x: 0,
-      y: 0,
-      width: this.screenWidth,
-      height: this.screenHeight
+  constructor({
+    objectOptions: {
+      tilesConfig,
+      tiles,
+      staticObjects,
+      dynamicObjects,
+      characters
+    },
+    map,
+    player
+  }: EngineProps<ObjectOptionsGenericType>) {
+    super({
+      screenWidth: 0,
+      screenHeight: 0,
+      player: { ...player, CharacterBaseConfigs: characters },
+      tilesConfig,
+      tileOptions: tiles,
+      staticObjectsOptions: staticObjects,
+      dynamicObjectsOptions: dynamicObjects,
+      map
     });
-
-    this.player = new Player({ ...player, canvasDraw: this.canvasDraw });
-
-    this.camera.setBounds(0, 0, this.world.worldWidth, this.world.worldHeight);
 
     // Get user inputs
     this.setupInput();
@@ -73,62 +60,12 @@ export default class Engine {
   }
 
   private update(deltaTime: number) {
-    this.characters.forEach((character) => {
-      character.update(deltaTime, this.keyPresses);
-    });
-
-    const isPlayerCollidingWithCharacter = this.characters.find((character) => {
-      return this.player.checkColliding(character, deltaTime);
-    });
-
-    const isPlayerCollidingWithWorldEdge = this.player.isReachingEdge(
-      this.world,
-      deltaTime
-    );
-
-    if (isPlayerCollidingWithCharacter || isPlayerCollidingWithWorldEdge) {
-      this.player.isColliding = true;
-    } else {
-      this.player.isColliding = false;
-    }
-
-    this.player.update(deltaTime, this.keyPresses);
-
-    this.camera.moveTo(
-      this.player.x - this.camera.width / 2,
-      this.player.y - this.camera.height / 2
-    );
-
-    this.camera.updateShake();
+    this.update_world(deltaTime, this.keyPresses);
   }
 
   private render() {
     this.canvasDraw.clearScene();
-    this.canvasDraw.ctx.save();
-
-    const cameraPos = this.camera.getFinalPosition();
-    this.canvasDraw.ctx.translate(-cameraPos.x, -cameraPos.y);
-
-    this.world.render(this.camera);
-
-    this.player.render("bottom");
-
-    this.characters.forEach((character) => {
-      if (!this.camera.isVisible(character)) return;
-
-      character.render("bottom");
-    });
-
-    this.characters.forEach((character) => {
-      if (!this.camera.isVisible(character)) return;
-
-      character.render("top");
-    });
-
-    this.player.render("top");
-    this.player.drawName();
-
-    this.canvasDraw.ctx.restore();
+    this.render_world();
   }
 
   private updateScreenSize() {
@@ -173,49 +110,5 @@ export default class Engine {
   restart() {
     this.stop();
     this.start();
-  }
-
-  addCharacter(character: Omit<CharacterProps, "canvasDraw">) {
-    this.characters.push(
-      new Character({
-        ...character,
-        canvasDraw: this.canvasDraw
-      })
-    );
-
-    return this.characters.length - 1;
-  }
-
-  removeCharacter(characterIndex: number) {
-    // remove with splice for performance
-    if (this.characters[characterIndex]) {
-      this.characters.splice(characterIndex, 1);
-    }
-  }
-
-  addDynamicObject(dynamicObject: Omit<BaseObjectProps, "canvasDraw">) {
-    this.dynamicObjects.push(
-      new DynamicObject({ ...dynamicObject, canvasDraw: this.canvasDraw })
-    );
-  }
-
-  removeDynamicObject(dynamicObjectIndex: number) {
-    // remove with splice for performance
-    if (this.dynamicObjects[dynamicObjectIndex]) {
-      this.dynamicObjects.splice(dynamicObjectIndex, 1);
-    }
-  }
-
-  addStaticObject(staticObject: Omit<BaseObjectProps, "canvasDraw">) {
-    this.staticObjects.push(
-      new BaseObject({ ...staticObject, canvasDraw: this.canvasDraw })
-    );
-  }
-
-  removeStaticObject(staticObjectIndex: number) {
-    // remove with splice for performance
-    if (this.staticObjects[staticObjectIndex]) {
-      this.staticObjects.splice(staticObjectIndex, 1);
-    }
   }
 }

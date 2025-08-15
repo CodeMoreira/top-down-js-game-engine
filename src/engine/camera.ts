@@ -3,7 +3,7 @@
  * Implementação em JavaScript Vanilla
  */
 
-import { BaseObject } from "./base-object/base-object";
+import { BaseObject } from "./objects/base-object";
 
 interface CamepraProps {
   x: number;

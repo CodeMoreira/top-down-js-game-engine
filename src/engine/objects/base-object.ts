@@ -4,23 +4,13 @@ import { ObjectParts } from "../types";
 export interface BaseObjectProps {
   x: number;
   y: number;
-  texture?: string;
-  canvasDraw: CanvasDraw;
-}
-
-interface IBaseObject {
-  canvasDraw: CanvasDraw;
-  x: number;
-  y: number;
   width: number;
   height: number;
   texture: string;
-  drawObject(position: [number, number], part?: ObjectParts): void;
-  render(part?: ObjectParts): void;
-  setPosition(x: number, y: number): void;
+  canvasDraw: CanvasDraw;
 }
 
-export class BaseObject implements IBaseObject {
+export class BaseObject {
   canvasDraw: CanvasDraw;
 
   x: number;
@@ -29,19 +19,14 @@ export class BaseObject implements IBaseObject {
   height: number;
   texture: string;
 
-  constructor({
-    x,
-    y,
-    texture = "rgba(41, 190, 80)",
-    canvasDraw
-  }: BaseObjectProps) {
+  constructor({ x, y, width, height, texture, canvasDraw }: BaseObjectProps) {
     this.canvasDraw = canvasDraw;
     this.texture = texture;
 
     this.x = x;
     this.y = y;
-    this.width = 65;
-    this.height = 65;
+    this.width = width;
+    this.height = height;
   }
 
   drawObject(position: [number, number], part?: ObjectParts) {
@@ -50,7 +35,8 @@ export class BaseObject implements IBaseObject {
       case "top":
         this.canvasDraw.drawBox(
           [position[0] - this.width / 2, position[1] - this.height / 2],
-          [position[0] + this.width / 2, position[1]],
+          // The "+1" prevent a gap between parts
+          [position[0] + this.width / 2, position[1] + 1],
           this.texture,
           true
         );
@@ -65,8 +51,8 @@ export class BaseObject implements IBaseObject {
         break;
       default:
         this.canvasDraw.drawBox(
-          position,
-          [position[0] + this.width, position[1] + this.height],
+          [position[0] - this.width / 2, position[1] - this.height / 2],
+          [position[0] + this.width / 2, position[1] + this.height / 2],
           this.texture,
           true
         );
@@ -74,7 +60,7 @@ export class BaseObject implements IBaseObject {
     }
 
     // draw anchor point
-    this.canvasDraw.drawCircle(this.x, this.y, 5, "red");
+    // this.canvasDraw.drawCircle(this.x, this.y, 5, "red");
   }
 
   render(part?: ObjectParts) {

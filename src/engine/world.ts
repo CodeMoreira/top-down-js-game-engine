@@ -1,129 +1,256 @@
-import { BaseObject } from "./base-object/base-object";
+import { BaseObject, type BaseObjectProps } from "./objects/base-object";
 import { Camera } from "./camera";
 import CanvasDraw from "./canvas-draw";
-import { textures } from "./textures";
+import { DynamicObject } from "./objects/dynamic-object";
+import Character, {
+  CharacterBaseConfigs,
+  type CharacterProps
+} from "./objects/character";
+import Player from "./objects/player";
+import { ObjectOptions } from "./types";
 
-interface WorldProps {
-  canvasDraw: CanvasDraw;
+interface WorldProps<ObjectOptionsGenericType extends ObjectOptions> {
+  player: Omit<
+    CharacterProps<
+      Extract<keyof ObjectOptionsGenericType["characters"], string>
+    >,
+    "canvasDraw"
+  >;
+  tilesConfig: ObjectOptions["tilesConfig"];
+  tileOptions: ObjectOptions["tiles"];
+  staticObjectsOptions: ObjectOptions["staticObjects"];
+  dynamicObjectsOptions: ObjectOptions["dynamicObjects"];
+  map: string[][];
+  screenWidth: number;
+  screenHeight: number;
 }
 
-export class World {
+export class World<ObjectOptionsGenericType extends ObjectOptions> {
   canvasDraw: CanvasDraw;
+  screenWidth: number;
+  screenHeight: number;
 
-  tiles: BaseObject[] = [];
-  objects: BaseObject[] = [];
-  tileSize: number = 64;
-  worldWidth: number = 2000;
-  worldHeight: number = 2000;
+  private worldWidth: number = 0;
+  private worldHeight: number = 0;
 
-  constructor({ canvasDraw }: WorldProps) {
-    this.canvasDraw = canvasDraw;
+  camera: Camera;
+  private tiles: BaseObject[] = [];
+  private staticObjects: BaseObject[] = [];
+  private dynamicObjects: DynamicObject[] = [];
+  private characters: Character<
+    Extract<keyof ObjectOptionsGenericType["characters"], string>
+  >[] = [];
+  private player: Player<ObjectOptionsGenericType>;
+  private CharacterBaseConfigs: CharacterBaseConfigs;
+  private tilesConfig: ObjectOptionsGenericType["tilesConfig"];
+  private tileOptions: ObjectOptionsGenericType["tiles"];
+  private map: string[][];
 
-    this.generateWorld();
+  constructor({
+    player: { CharacterBaseConfigs, ...player },
+    tilesConfig,
+    tileOptions,
+    staticObjectsOptions,
+    dynamicObjectsOptions,
+    map
+  }: WorldProps<ObjectOptionsGenericType>) {
+    this.screenWidth = window.innerWidth;
+    this.screenHeight = window.innerHeight;
+
+    // Create canvas
+    const canvas = document.createElement("canvas");
+    canvas.width = this.screenWidth;
+    canvas.height = this.screenHeight;
+    document.body.appendChild(canvas);
+
+    // Get context
+    const ctx = canvas.getContext("2d")!;
+
+    this.canvasDraw = new CanvasDraw({ ctx });
+
+    this.tilesConfig = tilesConfig;
+    this.tileOptions = tileOptions;
+    this.map = map;
+
+    this.camera = new Camera({
+      x: 0,
+      y: 0,
+      width: this.screenWidth,
+      height: this.screenHeight
+    });
+
+    this.CharacterBaseConfigs = CharacterBaseConfigs;
+    this.player = new Player({
+      ...player,
+      CharacterBaseConfigs,
+      canvasDraw: this.canvasDraw
+    });
+
+    this.generate_world();
   }
 
-  generateWorld() {
-    // Create a grid of tiles
-    const tilesX = Math.ceil(this.worldWidth / this.tileSize);
-    const tilesY = Math.ceil(this.worldHeight / this.tileSize);
+  generate_world() {
+    this.map.forEach((row, rowIndex) => {
+      const y = rowIndex + 1;
+      row.forEach((tile, colIndex) => {
+        const x = colIndex + 1;
 
-    for (let y = 0; y < tilesY; y++) {
-      for (let x = 0; x < tilesX; x++) {
-        const tile = new BaseObject({
-          x: x * this.tileSize,
-          y: y * this.tileSize,
-          texture: this.getTileType(x, y),
+        // We need "-1" to prevent a gap between tiles
+        const newTile = new BaseObject({
+          x: x * (this.tilesConfig.width - 1) - this.tilesConfig.width / 2,
+          y: y * (this.tilesConfig.height - 1) - this.tilesConfig.height / 2,
+          width: this.tilesConfig.width,
+          height: this.tilesConfig.height,
+          texture: this.tileOptions[tile],
           canvasDraw: this.canvasDraw
         });
-        this.tiles.push(tile);
-      }
-    }
 
-    this.addDecorations();
-  }
+        // Set world width and height
+        const calcTileMaxX = newTile.x + newTile.width / 2;
+        const calcTileMaxY = newTile.y + newTile.height / 2;
 
-  getTileType(x: number, y: number) {
-    // Create a simple pattern
-    if ((x + y) % 16 === 0) return "stone";
-    if (x % 5 === 0 && y % 5 === 0) return "tree";
-    if ((x * y) % 13 === 0) return "water";
-    return "grass";
-  }
+        if (calcTileMaxX > this.worldWidth) {
+          this.worldWidth = calcTileMaxX;
+        }
+        if (calcTileMaxY > this.worldHeight) {
+          this.worldHeight = calcTileMaxY;
+        }
 
-  addDecorations() {
-    // Add some rocks and big trees
-    for (let i = 0; i < 50; i++) {
-      const obj = new BaseObject({
-        x: Math.random() * this.worldWidth,
-        y: Math.random() * this.worldHeight,
-        texture: Math.random() > 0.5 ? "rock" : "big_tree",
-        canvasDraw: this.canvasDraw
+        this.tiles.push(newTile);
       });
-      this.objects.push(obj);
-    }
-  }
-
-  render(camera: Camera) {
-    // Render visible tiles
-    this.tiles.forEach((tile) => {
-      if (camera.isVisible(tile)) {
-        this.renderTile(tile);
-      }
-    });
-
-    // Render visible objects
-    this.objects.forEach((obj) => {
-      if (camera.isVisible(obj)) {
-        this.renderObject(obj);
-      }
     });
   }
 
-  renderTile(tile: BaseObject) {
-    const color = textures[tile.texture] || "#8BC34A";
+  update_world(deltaTime: number, keyPresses: string[]) {
+    this.characters.forEach((character) => {
+      character.update(deltaTime, keyPresses);
+    });
 
-    this.canvasDraw.ctx.fillStyle = color;
-    this.canvasDraw.ctx.fillRect(tile.x, tile.y, tile.width, tile.height);
+    const isPlayerCollidingWithCharacter = this.characters.find((character) => {
+      return this.player.checkColliding(character, deltaTime);
+    });
 
-    // Adicionar borda sutil
-    this.canvasDraw.ctx.strokeStyle = "rgba(0,0,0,0.1)";
-    this.canvasDraw.ctx.lineWidth = 1;
-    this.canvasDraw.ctx.strokeRect(tile.x, tile.y, tile.width, tile.height);
-  }
+    const isPlayerCollidingWithWorldEdge = this.player.isReachingEdge(
+      this.getWorldBounds(),
+      deltaTime
+    );
 
-  renderObject(obj: BaseObject) {
-    const color = textures[obj.texture] || "#795548";
-
-    this.canvasDraw.ctx.fillStyle = "rgba(0,0,0,0.2)";
-    this.canvasDraw.ctx.fillRect(obj.x, obj.y + obj.height + 5, obj.width, 5);
-
-    this.canvasDraw.ctx.fillStyle = color;
-
-    if (obj.texture === "big_tree") {
-      // Desenhar árvore como círculo
-      const centerX = obj.x + obj.width / 2;
-      const centerY = obj.y + obj.height / 2;
-      const radius = Math.min(obj.width, obj.height) / 2;
-
-      this.canvasDraw.ctx.beginPath();
-      this.canvasDraw.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-      this.canvasDraw.ctx.fill();
-
-      // Tronco
-      this.canvasDraw.ctx.fillStyle = "#5D4037";
-      this.canvasDraw.ctx.fillRect(centerX - 8, centerY + radius - 10, 16, 20);
+    if (isPlayerCollidingWithCharacter || isPlayerCollidingWithWorldEdge) {
+      this.player.isColliding = true;
     } else {
-      // Desenhar como retângulo
-      this.canvasDraw.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+      this.player.isColliding = false;
     }
+
+    this.player.update(deltaTime, keyPresses);
+
+    this.camera.moveTo(
+      this.player.x - this.camera.width / 2,
+      this.player.y - this.camera.height / 2
+    );
+
+    this.camera.updateShake();
   }
 
-  getBounds() {
+  render_world() {
+    this.canvasDraw.ctx.save();
+
+    const cameraPos = this.camera.getFinalPosition();
+    this.canvasDraw.ctx.translate(-cameraPos.x, -cameraPos.y);
+
+    this.tiles.forEach((tile) => {
+      if (this.camera.isVisible(tile)) {
+        tile.render();
+      }
+    });
+
+    this.staticObjects.forEach((object) => {
+      if (this.camera.isVisible(object)) {
+        object.render();
+      }
+    });
+
+    this.player.render("bottom");
+
+    this.characters.forEach((character) => {
+      if (!this.camera.isVisible(character)) return;
+
+      character.render("bottom");
+    });
+
+    this.characters.forEach((character) => {
+      if (!this.camera.isVisible(character)) return;
+
+      character.render("top");
+    });
+
+    this.player.render("top");
+    this.player.drawName();
+
+    this.canvasDraw.ctx.restore();
+  }
+
+  private getWorldBounds() {
     return {
       minX: 0,
       minY: 0,
       maxX: this.worldWidth,
       maxY: this.worldHeight
     };
+  }
+
+  addStaticObject(staticObject: Omit<BaseObjectProps, "canvasDraw">) {
+    this.staticObjects.push(
+      new BaseObject({ ...staticObject, canvasDraw: this.canvasDraw })
+    );
+
+    return this.staticObjects.length - 1;
+  }
+
+  removeStaticObject(staticObjectIndex: number) {
+    // remove with splice for performance
+    if (this.staticObjects[staticObjectIndex]) {
+      this.staticObjects.splice(staticObjectIndex, 1);
+    }
+  }
+
+  addDynamicObject(dynamicObject: Omit<BaseObjectProps, "canvasDraw">) {
+    this.dynamicObjects.push(
+      new DynamicObject({ ...dynamicObject, canvasDraw: this.canvasDraw })
+    );
+
+    return this.dynamicObjects.length - 1;
+  }
+
+  removeDynamicObject(dynamicObjectIndex: number) {
+    // remove with splice for performance
+    if (this.dynamicObjects[dynamicObjectIndex]) {
+      this.dynamicObjects.splice(dynamicObjectIndex, 1);
+    }
+  }
+
+  addCharacter(
+    character: Omit<
+      CharacterProps<
+        Extract<keyof ObjectOptionsGenericType["characters"], string>
+      >,
+      "canvasDraw" | "CharacterBaseConfigs"
+    >
+  ) {
+    this.characters.push(
+      new Character({
+        ...character,
+        CharacterBaseConfigs: this.CharacterBaseConfigs,
+        canvasDraw: this.canvasDraw
+      })
+    );
+
+    return this.characters.length - 1;
+  }
+
+  removeCharacter(characterIndex: number) {
+    // remove with splice for performance
+    if (this.characters[characterIndex]) {
+      this.characters.splice(characterIndex, 1);
+    }
   }
 }

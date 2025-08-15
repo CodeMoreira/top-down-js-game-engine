@@ -2,18 +2,14 @@ import { ObjectParts } from "../types";
 import { World } from "../world";
 import { BaseObject, type BaseObjectProps } from "./base-object";
 
-interface IDynamicObject extends BaseObject {
-  speed: number;
-  isMoving: boolean;
-  direction: { x: number; y: number };
-  update(deltaTime: number, keys: string[]): void;
-  calcMovement(deltaTime: number): { x: number; y: number };
-  isColliding: boolean;
-  checkColliding(other: BaseObject, deltaTime: number): void;
-  isReachingEdge(world: World, deltaTime: number): boolean;
+interface IWorldBounds {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
 }
 
-export class DynamicObject extends BaseObject implements IDynamicObject {
+export class DynamicObject extends BaseObject {
   speed: number;
 
   // Properties for animation
@@ -22,8 +18,8 @@ export class DynamicObject extends BaseObject implements IDynamicObject {
 
   isColliding: boolean = false;
 
-  constructor({ x, y, canvasDraw }: BaseObjectProps) {
-    super({ x, y, canvasDraw });
+  constructor(props: BaseObjectProps) {
+    super(props);
   }
 
   update(_deltaTime: number, _keys: string[]) {}
@@ -65,9 +61,8 @@ export class DynamicObject extends BaseObject implements IDynamicObject {
     return isMovementColliding;
   }
 
-  isReachingEdge(world: World, deltaTime: number) {
+  isReachingEdge(worldBounds: IWorldBounds, deltaTime: number) {
     const movement = this.calcMovement(deltaTime);
-    const worldBounds = world.getBounds();
 
     return (
       movement.x - this.width / 2 <= worldBounds.minX ||

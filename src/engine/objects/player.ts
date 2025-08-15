@@ -1,9 +1,18 @@
 import Character, { type CharacterProps } from "./character";
-import { controls } from "./controls";
+import { controls } from "../controls";
+import { ObjectOptions } from "../types";
 
-export default class Player extends Character {
-  constructor({ x, y, character, canvasDraw }: CharacterProps) {
-    super({ x, y, character, canvasDraw });
+export default class Player<
+  ObjectOptionsGenericType extends ObjectOptions
+> extends Character<
+  Extract<keyof ObjectOptionsGenericType["characters"], string>
+> {
+  constructor(
+    props: CharacterProps<
+      Extract<keyof ObjectOptionsGenericType["characters"], string>
+    >
+  ) {
+    super(props);
   }
 
   update(deltaTime: number, keys: string[]) {
