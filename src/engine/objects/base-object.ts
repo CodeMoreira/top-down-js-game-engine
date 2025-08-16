@@ -11,6 +11,7 @@ export interface BaseObjectProps {
 }
 
 export class BaseObject {
+  readonly id: string | "player" = Math.random().toString(36).slice(2);
   canvasDraw: CanvasDraw;
 
   x: number;

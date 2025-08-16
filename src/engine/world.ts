@@ -26,23 +26,28 @@ interface WorldProps<ObjectOptionsGenericType extends ObjectOptions> {
 }
 
 export class World<ObjectOptionsGenericType extends ObjectOptions> {
-  canvasDraw: CanvasDraw;
-  screenWidth: number;
-  screenHeight: number;
+  protected canvasDraw: CanvasDraw;
+  protected canvasElement: HTMLCanvasElement;
+  protected screenWidth: number;
+  protected screenHeight: number;
 
   private worldWidth: number = 0;
   private worldHeight: number = 0;
 
-  camera: Camera;
+  protected camera: Camera;
+  cameraTarget: {
+    objectType: "static" | "dynamic" | "character";
+    id: "player" | string;
+  } = { objectType: "character", id: "player" };
   private tiles: BaseObject[] = [];
   private staticObjects: BaseObject[] = [];
   private dynamicObjects: DynamicObject[] = [];
   private characters: Character<
     Extract<keyof ObjectOptionsGenericType["characters"], string>
   >[] = [];
-  private player: Player<ObjectOptionsGenericType>;
+  protected player: Player<ObjectOptionsGenericType>;
   private CharacterBaseConfigs: CharacterBaseConfigs;
-  private tilesConfig: ObjectOptionsGenericType["tilesConfig"];
+  protected tilesConfig: ObjectOptionsGenericType["tilesConfig"];
   private tileOptions: ObjectOptionsGenericType["tiles"];
   private map: string[][];
 
@@ -58,13 +63,13 @@ export class World<ObjectOptionsGenericType extends ObjectOptions> {
     this.screenHeight = window.innerHeight;
 
     // Create canvas
-    const canvas = document.createElement("canvas");
-    canvas.width = this.screenWidth;
-    canvas.height = this.screenHeight;
-    document.body.appendChild(canvas);
+    this.canvasElement = document.createElement("canvas");
+    this.canvasElement.width = this.screenWidth;
+    this.canvasElement.height = this.screenHeight;
+    document.body.appendChild(this.canvasElement);
 
     // Get context
-    const ctx = canvas.getContext("2d")!;
+    const ctx = this.canvasElement.getContext("2d")!;
 
     this.canvasDraw = new CanvasDraw({ ctx });
 
@@ -73,6 +78,7 @@ export class World<ObjectOptionsGenericType extends ObjectOptions> {
     this.map = map;
 
     this.camera = new Camera({
+      tilesConfig: tilesConfig,
       x: 0,
       y: 0,
       width: this.screenWidth,
@@ -89,7 +95,31 @@ export class World<ObjectOptionsGenericType extends ObjectOptions> {
     this.generate_world();
   }
 
-  generate_world() {
+  protected getWorldBounds() {
+    return {
+      minX: 0,
+      minY: 0,
+      maxX: this.worldWidth,
+      maxY: this.worldHeight
+    };
+  }
+
+  private setWorldBoundsByTile(tileX: number, tileY: number) {
+    const calcTileMaxX = tileX + this.tilesConfig.width / 2 - 10;
+    const calcTileMaxY = tileY + this.tilesConfig.height / 2 - 10;
+
+    if (calcTileMaxX > this.worldWidth) {
+      this.worldWidth = calcTileMaxX;
+    }
+    if (calcTileMaxY > this.worldHeight) {
+      this.worldHeight = calcTileMaxY;
+    }
+
+    const { minX, minY, maxX, maxY } = this.getWorldBounds();
+    this.camera.setBounds(minX, minY, maxX, maxY);
+  }
+
+  protected generate_world() {
     this.map.forEach((row, rowIndex) => {
       const y = rowIndex + 1;
       row.forEach((tile, colIndex) => {
@@ -97,61 +127,71 @@ export class World<ObjectOptionsGenericType extends ObjectOptions> {
 
         // We need "-1" to prevent a gap between tiles
         const newTile = new BaseObject({
-          x: x * (this.tilesConfig.width - 1) - this.tilesConfig.width / 2,
-          y: y * (this.tilesConfig.height - 1) - this.tilesConfig.height / 2,
+          x: x * this.tilesConfig.width - this.tilesConfig.width / 2,
+          y: y * this.tilesConfig.height - this.tilesConfig.height / 2,
           width: this.tilesConfig.width,
           height: this.tilesConfig.height,
           texture: this.tileOptions[tile],
           canvasDraw: this.canvasDraw
         });
 
-        // Set world width and height
-        const calcTileMaxX = newTile.x + newTile.width / 2;
-        const calcTileMaxY = newTile.y + newTile.height / 2;
-
-        if (calcTileMaxX > this.worldWidth) {
-          this.worldWidth = calcTileMaxX;
-        }
-        if (calcTileMaxY > this.worldHeight) {
-          this.worldHeight = calcTileMaxY;
-        }
+        this.setWorldBoundsByTile(newTile.x, newTile.y);
 
         this.tiles.push(newTile);
       });
     });
+
+    // this.camera.shake(20, 300);
   }
 
-  update_world(deltaTime: number, keyPresses: string[]) {
-    this.characters.forEach((character) => {
-      character.update(deltaTime, keyPresses);
-    });
+  private setCameraToFollowTarget() {
+    let followTargetPosition: { x: number; y: number } = { x: 0, y: 0 };
 
-    const isPlayerCollidingWithCharacter = this.characters.find((character) => {
-      return this.player.checkColliding(character, deltaTime);
-    });
+    const cameraTargetCases = {
+      static: () => {
+        const staticObject = this.staticObjects.find(
+          (o) => o.id === this.cameraTarget.id
+        )!;
+        followTargetPosition = { x: staticObject.x, y: staticObject.y };
+      },
+      dynamic: () => {
+        const dynamicObject = this.dynamicObjects.find(
+          (o) => o.id === this.cameraTarget.id
+        )!;
+        followTargetPosition = { x: dynamicObject.x, y: dynamicObject.y };
+      },
+      character: () => {
+        const character = this.characters.find(
+          (c) => c.id === this.cameraTarget.id
+        )!;
+        followTargetPosition = { x: character.x, y: character.y };
+      }
+    };
 
-    const isPlayerCollidingWithWorldEdge = this.player.isReachingEdge(
-      this.getWorldBounds(),
-      deltaTime
-    );
-
-    if (isPlayerCollidingWithCharacter || isPlayerCollidingWithWorldEdge) {
-      this.player.isColliding = true;
+    if (
+      this.cameraTarget.objectType === "character" &&
+      this.cameraTarget.id === "player"
+    ) {
+      followTargetPosition = { x: this.player.x, y: this.player.y };
     } else {
-      this.player.isColliding = false;
+      cameraTargetCases[this.cameraTarget.objectType]();
     }
 
+    this.camera.follow(
+      { x: followTargetPosition.x, y: followTargetPosition.y },
+      true
+    );
+  }
+
+  protected update_dev_world(deltaTime: number, keyPresses: string[]) {
     this.player.update(deltaTime, keyPresses);
 
-    this.camera.moveTo(
-      this.player.x - this.camera.width / 2,
-      this.player.y - this.camera.height / 2
-    );
+    this.setCameraToFollowTarget();
 
     this.camera.updateShake();
   }
 
-  render_world() {
+  protected render_dev_world() {
     this.canvasDraw.ctx.save();
 
     const cameraPos = this.camera.getFinalPosition();
@@ -189,13 +229,101 @@ export class World<ObjectOptionsGenericType extends ObjectOptions> {
     this.canvasDraw.ctx.restore();
   }
 
-  private getWorldBounds() {
-    return {
-      minX: 0,
-      minY: 0,
-      maxX: this.worldWidth,
-      maxY: this.worldHeight
-    };
+  protected update_world(deltaTime: number, keyPresses: string[]) {
+    this.characters.forEach((character) => {
+      character.update(deltaTime, keyPresses);
+    });
+
+    const isPlayerCollidingWithCharacter = this.characters.find((character) => {
+      return this.player.checkColliding(character, deltaTime);
+    });
+
+    const isPlayerCollidingWithWorldEdge = this.player.isReachingEdge(
+      this.getWorldBounds(),
+      deltaTime
+    );
+
+    if (isPlayerCollidingWithCharacter || isPlayerCollidingWithWorldEdge) {
+      this.player.isColliding = true;
+    } else {
+      this.player.isColliding = false;
+    }
+
+    this.player.update(deltaTime, keyPresses);
+
+    this.camera.moveTo(
+      this.player.x - this.camera.width / 2,
+      this.player.y - this.camera.height / 2,
+      true
+    );
+
+    this.camera.updateShake();
+  }
+
+  protected render_world() {
+    this.canvasDraw.ctx.save();
+
+    const cameraPos = this.camera.getFinalPosition();
+    this.canvasDraw.ctx.translate(-cameraPos.x, -cameraPos.y);
+
+    this.tiles.forEach((tile) => {
+      if (this.camera.isVisible(tile)) {
+        tile.render();
+      }
+    });
+
+    this.staticObjects.forEach((object) => {
+      if (this.camera.isVisible(object)) {
+        object.render();
+      }
+    });
+
+    this.player.render("bottom");
+
+    this.characters.forEach((character) => {
+      if (!this.camera.isVisible(character)) return;
+
+      character.render("bottom");
+    });
+
+    this.characters.forEach((character) => {
+      if (!this.camera.isVisible(character)) return;
+
+      character.render("top");
+    });
+
+    this.player.render("top");
+    this.player.drawName();
+
+    this.canvasDraw.ctx.restore();
+  }
+
+  protected addTile({
+    texture,
+    ...rest
+  }: Omit<BaseObjectProps, "canvasDraw" | "width" | "height">) {
+    this.removeTile(rest.x, rest.y);
+
+    const newTile = new BaseObject({
+      texture: this.tileOptions[texture],
+      width: this.tilesConfig.width,
+      height: this.tilesConfig.height,
+      canvasDraw: this.canvasDraw,
+      ...rest
+    });
+
+    this.tiles.push(newTile);
+
+    this.setWorldBoundsByTile(newTile.x, newTile.y);
+  }
+
+  protected removeTile(x: number, y: number) {
+    // remove with splice for performance
+    this.tiles.forEach((tile, index) => {
+      if (tile.x === x && tile.y === y) {
+        this.tiles.splice(index, 1);
+      }
+    });
   }
 
   addStaticObject(staticObject: Omit<BaseObjectProps, "canvasDraw">) {
@@ -221,7 +349,7 @@ export class World<ObjectOptionsGenericType extends ObjectOptions> {
     return this.dynamicObjects.length - 1;
   }
 
-  removeDynamicObject(dynamicObjectIndex: number) {
+  protected removeDynamicObject(dynamicObjectIndex: number) {
     // remove with splice for performance
     if (this.dynamicObjects[dynamicObjectIndex]) {
       this.dynamicObjects.splice(dynamicObjectIndex, 1);
@@ -236,15 +364,15 @@ export class World<ObjectOptionsGenericType extends ObjectOptions> {
       "canvasDraw" | "CharacterBaseConfigs"
     >
   ) {
-    this.characters.push(
-      new Character({
-        ...character,
-        CharacterBaseConfigs: this.CharacterBaseConfigs,
-        canvasDraw: this.canvasDraw
-      })
-    );
+    const newCharacter = new Character({
+      ...character,
+      CharacterBaseConfigs: this.CharacterBaseConfigs,
+      canvasDraw: this.canvasDraw
+    });
 
-    return this.characters.length - 1;
+    this.characters.push(newCharacter);
+
+    return { index: this.characters.length - 1, id: newCharacter.id };
   }
 
   removeCharacter(characterIndex: number) {

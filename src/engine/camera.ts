@@ -6,6 +6,7 @@
 import { BaseObject } from "./objects/base-object";
 
 interface CamepraProps {
+  tilesConfig: { width: number; height: number };
   x: number;
   y: number;
   width: number;
@@ -13,8 +14,10 @@ interface CamepraProps {
 }
 
 export class Camera {
+  tilesConfig: { width: number; height: number };
   x: number;
   y: number;
+
   width: number;
   height: number;
   smoothing: number;
@@ -27,14 +30,15 @@ export class Camera {
   shakeOffsetX: number;
   shakeOffsetY: number;
 
-  constructor({ x, y, width, height }: CamepraProps) {
+  constructor({ tilesConfig, x, y, width, height }: CamepraProps) {
+    this.tilesConfig = tilesConfig;
     this.x = x;
     this.y = y;
     this.width = width;
     this.height = height;
 
     // Smoothing options
-    this.smoothing = 0.1; // lerp Factor (0 = no smoothing, 1 = instantaneous movement)
+    this.smoothing = 0.02; // lerp Factor (0 = no smoothing, 1 = instantaneous movement)
     this.deadZone = 50; // Dead zone from the center of the viewport (in pixels)
 
     // Camera limits (optional)
@@ -70,27 +74,6 @@ export class Camera {
     this.applyBounds();
   }
 
-  followWithDeadZone(target: { x: number; y: number }) {
-    const centerX = this.x + this.width / 2;
-    const centerY = this.y + this.height / 2;
-
-    const deltaX = target.x - centerX;
-    const deltaY = target.y - centerY;
-
-    // Only move the camera if the target is outside the dead zone
-    if (Math.abs(deltaX) > this.deadZone) {
-      const targetX = target.x - this.width / 2;
-      this.x = this.lerp(this.x, targetX, this.smoothing);
-    }
-
-    if (Math.abs(deltaY) > this.deadZone) {
-      const targetY = target.y - this.height / 2;
-      this.y = this.lerp(this.y, targetY, this.smoothing);
-    }
-
-    this.applyBounds();
-  }
-
   worldToScreen(worldX: number, worldY: number) {
     return {
       x: worldX - this.x,
@@ -106,11 +89,18 @@ export class Camera {
   }
 
   isVisible(object: BaseObject) {
+    const left = object.x - object.width / 2;
+    const right = object.x + object.width / 2;
+    const top = object.y - object.height / 2;
+    const bottom = object.y + object.height / 2;
+
     return !(
-      object.x + object.width < this.x ||
-      object.x > this.x + this.width ||
-      object.y + object.height < this.y ||
-      object.y > this.y + this.height
+      (
+        right <= this.x || // completely left of camera
+        left >= this.x + this.width || // completely right of camera
+        bottom <= this.y || // completely above camera
+        top >= this.y + this.height
+      ) // completely below camera
     );
   }
 

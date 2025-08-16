@@ -7,6 +7,8 @@ export default class Player<
 > extends Character<
   Extract<keyof ObjectOptionsGenericType["characters"], string>
 > {
+  readonly id: string | "player" = "player";
+
   constructor(
     props: CharacterProps<
       Extract<keyof ObjectOptionsGenericType["characters"], string>

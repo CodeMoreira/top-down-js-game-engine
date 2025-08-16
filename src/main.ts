@@ -40,16 +40,24 @@ const objectOptions = {
   }
 } as const;
 
+const textures: Array<keyof (typeof objectOptions)["tiles"]> = [
+  "grass",
+  "stone",
+  "tree",
+  "rock",
+  "big_tree"
+];
+
+const row = () => {
+  return new Array(50).fill(0).map(() => {
+    const texture = Math.floor(Math.random() * textures.length);
+    return textures[texture];
+  });
+};
+
 const engine = new Engine({
-  map: [
-    ["grass", "grass", "grass", "grass", "grass", "grass", "grass"],
-    ["grass", "grass", "grass", "grass", "grass", "grass", "grass"],
-    ["grass", "grass", "grass", "grass", "grass", "grass", "grass"],
-    ["grass", "grass", "grass", "stone", "grass", "grass", "grass"],
-    ["grass", "grass", "grass", "grass", "grass", "grass", "grass"],
-    ["grass", "grass", "grass", "grass", "grass", "grass", "grass"],
-    ["grass", "grass", "grass", "grass", "grass", "grass", "grass"]
-  ],
+  devMode: true,
+  map: new Array(50).fill(0).map(() => row()),
   objectOptions,
   player: {
     x: 105,
@@ -59,16 +67,24 @@ const engine = new Engine({
 });
 
 // Add some characters
-engine.addCharacter({
-  x: 30,
-  y: 105,
-  character: "peter"
-});
-engine.addCharacter({
-  x: 180,
-  y: 105,
-  character: "steve"
-});
+// engine.addCharacter({
+//   x: window.innerWidth - 500,
+//   y: window.innerHeight - 105,
+//   character: "peter"
+// });
+// const steve = engine.addCharacter({
+//   x: window.innerWidth + 15,
+//   y: window.innerHeight - 300,
+//   character: "steve"
+// });
+
+// setTimeout(() => {
+//   engine.cameraTarget = { objectType: "character", id: steve.id };
+
+//   setTimeout(() => {
+//     engine.cameraTarget = { objectType: "character", id: "player" };
+//   }, 5000);
+// }, 3000);
 
 document.addEventListener("DOMContentLoaded", () => {
   engine.start();
