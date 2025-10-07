@@ -1,21 +1,34 @@
-interface CanvasDrawProps {
-  ctx: CanvasRenderingContext2D;
-}
-
 export default class CanvasDraw {
-  ctx: CanvasRenderingContext2D;
+  protected parent: Element | null = null;
+  protected canvas: HTMLCanvasElement;
+  protected ctx: CanvasRenderingContext2D;
+  protected screenWidth: number = 0;
+  protected screenHeight: number = 0;
 
-  constructor({ ctx }: CanvasDrawProps) {
+  constructor() {
+    const canvasElement = document.createElement("canvas");
+    this.canvas = canvasElement;
+    canvasElement.width = this.screenWidth;
+    canvasElement.height = this.screenHeight;
+
+    // Get context
+    const ctx = canvasElement.getContext("2d")!;
+
     this.ctx = ctx;
   }
 
-  setScreenSize(width: number, height: number) {
+  appendTo(parent: Element) {
+    this.parent = parent;
+    parent.appendChild(this.canvas);
+  }
+
+  protected setScreenSize(width: number, height: number) {
     this.ctx.canvas.width = width;
     this.ctx.canvas.height = height;
   }
 
-  clearScene() {
-    this.ctx.fillStyle = "gray";
+  protected clearScene() {
+    this.ctx.fillStyle = "black";
     this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
   }
 
@@ -40,7 +53,8 @@ export default class CanvasDraw {
     start: [number, number],
     end: [number, number],
     color: string,
-    fill?: boolean
+    fill?: boolean,
+    width?: number
   ) {
     if (!color) {
       throw new Error("No color specified");
@@ -57,10 +71,10 @@ export default class CanvasDraw {
       return;
     }
 
-    this.drawLine(start, [end[0], start[1]], color);
-    this.drawLine([end[0], start[1]], end, color);
-    this.drawLine(end, [start[0], end[1]], color);
-    this.drawLine([start[0], end[1]], start, color);
+    this.drawLine(start, [end[0], start[1]], color, width);
+    this.drawLine([end[0], start[1]], end, color, width);
+    this.drawLine(end, [start[0], end[1]], color, width);
+    this.drawLine([start[0], end[1]], start, color, width);
   }
 
   drawCircle(x: number, y: number, radius: number, color: string) {
@@ -79,5 +93,21 @@ export default class CanvasDraw {
     this.ctx.strokeText(text, x, y);
 
     this.ctx.fillText(text, x, y);
+  }
+
+  drawImage({
+    image,
+    width,
+    height,
+    x,
+    y
+  }: {
+    image: HTMLImageElement;
+    width: number;
+    height: number;
+    x: number;
+    y: number;
+  }) {
+    this.ctx.drawImage(image, x, y, width, height);
   }
 }

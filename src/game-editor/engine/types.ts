@@ -1,5 +1,3 @@
-export type ObjectParts = "top" | "bottom";
-
 export type ObjectBaseOptions = {
   width: number;
   height: number;
@@ -14,8 +12,6 @@ export type DynamicObjectBaseOptions = {
 };
 
 export type ObjectOptions = {
-  tilesConfig: { width: number; height: number };
-  tiles: Record<string, string>;
   staticObjects: Record<string, ObjectBaseOptions>;
   dynamicObjects: Record<string, DynamicObjectBaseOptions>;
   characters: Record<string, DynamicObjectBaseOptions>;

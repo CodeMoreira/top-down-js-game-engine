@@ -3,10 +3,9 @@
  * Implementação em JavaScript Vanilla
  */
 
-import { BaseObject } from "./objects/base-object";
+import { GameObject } from "./objects/game-object";
 
 interface CamepraProps {
-  tilesConfig: { width: number; height: number };
   x: number;
   y: number;
   width: number;
@@ -14,24 +13,29 @@ interface CamepraProps {
 }
 
 export class Camera {
-  tilesConfig: { width: number; height: number };
   x: number;
   y: number;
 
   width: number;
   height: number;
+
+  target: { x: number; y: number } | null = null;
   smoothing: number;
+
   deadZone: number;
   bounds: { minX: number; minY: number; maxX: number; maxY: number };
 
-  shakeIntensity: number;
-  shakeDuration: number;
-  shakeTimer: number;
-  shakeOffsetX: number;
-  shakeOffsetY: number;
+  zoom: number = 1;
+  targetZoom: number = 1;
+  zoomSmoothing: number = 0.1;
 
-  constructor({ tilesConfig, x, y, width, height }: CamepraProps) {
-    this.tilesConfig = tilesConfig;
+  shakeIntensity: number = 0;
+  shakeDuration: number = 0;
+  shakeTimer: number = 0;
+  shakeOffsetX: number = 0;
+  shakeOffsetY: number = 0;
+
+  constructor({ x, y, width, height }: CamepraProps) {
     this.x = x;
     this.y = y;
     this.width = width;
@@ -55,53 +59,78 @@ export class Camera {
     this.height = height;
   }
 
-  follow(target: { x: number; y: number }, smooth: boolean = true) {
+  follow({
+    target,
+    smooth = this.smoothing
+  }: {
+    target: { x: number; y: number };
+    smooth?: number;
+  }) {
+    this.target = target;
+
     // Calc the desired position (center the target on the screen)
-    const targetX = target.x - this.width / 2;
-    const targetY = target.y - this.height / 2;
+    const targetX = this.target.x - this.width / 2;
+    const targetY = this.target.y - this.height / 2;
 
     if (smooth) {
-      // Smoothly move the camera to the target position using linear interpolation (lerp)
-      this.x = this.lerp(this.x, targetX, this.smoothing);
-      this.y = this.lerp(this.y, targetY, this.smoothing);
-    } else {
-      // Instantaneously move the camera to the target position
-      this.x = targetX;
-      this.y = targetY;
+      this.smoothing = Math.min(smooth, 1);
     }
+
+    this.x = this.lerp(this.x, targetX, this.smoothing);
+    this.y = this.lerp(this.y, targetY, this.smoothing);
 
     // Apply camera bounds
     this.applyBounds();
   }
 
+  setZoom({ smooth, zoom }: { smooth?: number; zoom?: number }) {
+    smooth && (this.zoomSmoothing = Math.min(smooth, 1));
+    zoom && (this.targetZoom = Math.max(0.1, zoom));
+  }
+
+  updateZoom() {
+    // Smoothly interpolate zoom towards targetZoom
+    this.zoom += (this.targetZoom - this.zoom) * this.zoomSmoothing;
+  }
+
   worldToScreen(worldX: number, worldY: number) {
     return {
-      x: worldX - this.x,
-      y: worldY - this.y
+      x: (worldX - this.x) * this.zoom,
+      y: (worldY - this.y) * this.zoom
     };
   }
 
   screenToWorld(screenX: number, screenY: number) {
     return {
-      x: screenX + this.x,
-      y: screenY + this.y
+      x: screenX / this.zoom + this.x,
+      y: screenY / this.zoom + this.y
     };
   }
 
-  isVisible(object: BaseObject) {
+  isVisible(object: GameObject) {
     const left = object.x - object.width / 2;
     const right = object.x + object.width / 2;
     const top = object.y - object.height / 2;
     const bottom = object.y + object.height / 2;
 
+    // Camera viewport with zoom applied
+    const camLeft = this.x;
+    const camRight = this.x + this.width / this.zoom;
+    const camTop = this.y;
+    const camBottom = this.y + this.height / this.zoom;
+
     return !(
       (
-        right <= this.x || // completely left of camera
-        left >= this.x + this.width || // completely right of camera
-        bottom <= this.y || // completely above camera
-        top >= this.y + this.height
+        right <= camLeft || // completely left of camera
+        left >= camRight || // completely right of camera
+        bottom <= camTop || // completely above camera
+        top >= camBottom
       ) // completely below camera
     );
+  }
+
+  getBounds() {
+    return this.bounds;
   }
 
   setBounds(minX: number, minY: number, maxX: number, maxY: number) {
@@ -141,7 +170,7 @@ export class Camera {
   }
 
   /**
-   * Atualiza o shake da câmera (chamar no loop principal)
+   * Update the sake of camera (call in the main loop)
    */
   updateShake() {
     if (this.shakeDuration && this.shakeTimer < this.shakeDuration) {
@@ -156,6 +185,17 @@ export class Camera {
       this.shakeOffsetX = 0;
       this.shakeOffsetY = 0;
     }
+  }
+
+  update() {
+    if (this.target) {
+      this.follow({
+        target: this.target
+      });
+    }
+
+    this.updateZoom();
+    this.updateShake();
   }
 
   getFinalPosition() {
