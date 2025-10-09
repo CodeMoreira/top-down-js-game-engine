@@ -100,14 +100,26 @@ export default class CanvasDraw {
     width,
     height,
     x,
-    y
+    y,
+    rotate
   }: {
     image: HTMLImageElement;
     width: number;
     height: number;
     x: number;
     y: number;
+    rotate?: number;
   }) {
-    this.ctx.drawImage(image, x, y, width, height);
+    if (rotate) {
+      this.ctx.save();
+      // Translate to the center of the tile in world coordinates
+      this.ctx.translate(x + width / 2, y + height / 2);
+      this.ctx.rotate((rotate * Math.PI) / 180);
+      // Draw the image centered
+      this.ctx.drawImage(image, -width / 2, -height / 2, width, height);
+      this.ctx.restore();
+    } else {
+      this.ctx.drawImage(image, x, y, width, height);
+    }
   }
 }

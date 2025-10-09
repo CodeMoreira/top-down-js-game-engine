@@ -56,8 +56,10 @@ export class GameObject {
     this.canvasDraw = canvasDraw;
     this.backgroundColor = backgroundColor;
     this.border = border;
+
     this.x = x;
     this.y = y;
+
     this.width = width;
     this.height = height;
 
@@ -83,6 +85,9 @@ export class GameObject {
 
   addAttachment(object: GameObject) {
     this.attachments.push(object);
+    this.attachments.forEach((attachment) =>
+      attachment.setPosition(this.x, this.y)
+    );
   }
 
   render() {

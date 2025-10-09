@@ -1,4 +1,5 @@
 import { Camera } from "./camera";
+import CanvasDraw from "./canvas-draw";
 
 interface TileGridProps {
   left: number;
@@ -9,76 +10,85 @@ interface TileGridProps {
 }
 
 interface Tile {
-  "tl-tr-br-bl": string;
-  // 1 1
-  // 1 1
-
-  "tl-tr-br": string;
-  // 1 1
-  // 1 0
-
-  "tl-tr-bl": string;
-  // 1 1
-  // 0 1
-
-  "tl-br-bl": string;
-  // 1 0
-  // 1 1
-
-  "tr-br-bl": string;
-  // 0 1
-  // 1 1
-
-  "tl-tr": string;
-  // 1 1
-  // 0 0
-
-  "bl-br": string;
-  // 0 0
-  // 1 1
-
-  "tl-bl": string;
-  // 1 0
-  // 1 0
-
-  "tr-br": string;
-  // 0 1
-  // 0 1
-
-  tl: string;
-  // 1 0
-  // 0 0
-
-  tr: string;
-  // 0 1
-  // 0 0
-
-  bl: string;
-  // 0 0
-  // 1 0
-
-  br: string;
-  // 0 0
-  // 0 1
+  center: HTMLImageElement;
+  corner: HTMLImageElement;
+  straight: HTMLImageElement;
+  nook: HTMLImageElement;
+  doubleNook: HTMLImageElement;
 }
 
-type TileKey = keyof Tile | "";
+type TileKey =
+  // 1 1
+  // 1 1
+  | "tl-tr-br-bl"
+  // 1 1
+  // 1 0
+  | "tl-tr-br"
+  // 1 1
+  // 0 1
+  | "tl-tr-bl"
+  // 1 0
+  // 1 1
+  | "tl-br-bl"
+  // 0 1
+  // 1 1
+  | "tr-br-bl"
+  // 1 1
+  // 0 0
+  | "tl-tr"
+  // 0 0
+  // 1 1
+  | "bl-br"
+  // 1 0
+  // 1 0
+  | "tl-bl"
+  // 0 1
+  // 0 1
+  | "tr-br"
+  // 1 0
+  // 0 1
+  | "tl-br"
+  // 0 1
+  // 1 0
+  | "tr-bl"
+  // 1 0
+  // 0 0
+  | "tl"
+  // 0 1
+  // 0 0
+  | "tr"
+  // 0 0
+  // 1 0
+  | "bl"
+  // 0 0
+  // 0 1;
+  | "br";
 
 export interface ManageTilesProps {
+  canvasDraw: CanvasDraw;
   tiles: Record<string, Tile>;
   size: number;
 }
 
+// IMPORTANT NOTES
+// Due the tile is rendered from the middle i need to divide size by 2 to get the real position in some cases
+
 export class ManageTiles {
+  private canvasDraw: CanvasDraw;
+
   tiles: ManageTilesProps["tiles"];
-  worldTiles: string[][] = [];
-  displayTiles: TileKey[][] = [];
+  worldTiles: Record<number, Record<number, string>> = {};
+  displayTiles: Record<
+    number,
+    Record<number, { tile: keyof Tile; rotation: number }>
+  > = {};
 
   showGrid: boolean = true;
   size: number;
   gridColor: string = "rgba(255,255,255,0.05)";
 
   constructor(props: ManageTilesProps) {
+    this.canvasDraw = props.canvasDraw;
     this.tiles = props.tiles;
     this.size = props.size;
   }
@@ -123,55 +133,114 @@ export class ManageTiles {
     const botLeft = this.worldTiles[y]?.[x - 1] || "";
     const botRight = this.worldTiles[y]?.[x] || "";
 
+    const checkDirections = (
+      tl: boolean,
+      tr: boolean,
+      bl: boolean,
+      br: boolean
+    ) => {
+      return (
+        !!topLeft === tl &&
+        !!topRight === tr &&
+        !!botLeft === bl &&
+        !!botRight === br
+      );
+    };
     // Use a lookup table (like your Godot script) to pick the right display tile
-    let atlasIndex: TileKey = "";
+    let displayTile: keyof Tile | null = null;
+    let rotation = 0;
+
     switch (true) {
-      case !!topLeft && !!topRight && !!botLeft && !!botRight:
-        atlasIndex = "tl-tr-br-bl"; // All neighbors are set
+      case checkDirections(true, true, true, true):
+        // All neighbors are set
+        displayTile = "center";
+        rotation = 0;
         break;
-      case !!topLeft && !!topRight && !!botLeft && !botRight:
-        atlasIndex = "tl-tr-br"; // Missing bottom right
+      // ===========================================
+      case checkDirections(true, false, true, true):
+        // Missing top right
+        displayTile = "nook";
+        rotation = 0;
         break;
-      case !!topLeft && !!topRight && !botLeft && !!botRight:
-        atlasIndex = "tl-tr-br"; // Missing bottom left
+      case checkDirections(true, true, true, false):
+        // Missing bottom right
+        displayTile = "nook";
+        rotation = 90;
         break;
-      case !!topLeft && !topRight && !!botLeft && !!botRight:
-        atlasIndex = "tl-tr-br"; // Missing top right
+      case checkDirections(true, true, false, true):
+        // Missing bottom left
+        displayTile = "nook";
+        rotation = 180;
         break;
-      case !topLeft && !!topRight && !!botLeft && !!botRight:
-        atlasIndex = "tl-tr-br"; // Missing top left
+      case checkDirections(false, true, true, true):
+        // Missing top left
+        displayTile = "nook";
+        rotation = 270;
         break;
-      case !!topLeft && !!topRight && !botLeft && !botRight:
-        atlasIndex = "tl-tr"; // Only top neighbors
+      // ===========================================
+      case checkDirections(true, false, true, false):
+        // Only left neighbors
+        displayTile = "straight";
+        rotation = 0;
         break;
-      case !!botLeft && !!botRight && !topLeft && !topRight:
-        atlasIndex = "bl-br"; // Only bottom neighbors
+      case checkDirections(true, true, false, false):
+        // Only top neighbors
+        displayTile = "straight";
+        rotation = 90;
         break;
-      case !!topLeft && !!botLeft && !topRight && !botRight:
-        atlasIndex = "tl-bl"; // Only left neighbors
+      case checkDirections(false, true, false, true):
+        // Only right neighbors
+        displayTile = "straight";
+        rotation = 180;
         break;
-      case !!topRight && !!botRight && !topLeft && !botLeft:
-        atlasIndex = "tr-br"; // Only right neighbors
+      case checkDirections(false, false, true, true):
+        // Only bottom neighbors
+        displayTile = "straight";
+        rotation = 270;
         break;
-      case !!topLeft && !topRight && !botLeft && !botRight:
-        atlasIndex = "tl"; // Only top-left neighbor
+      // ===========================================
+      case checkDirections(false, true, true, false):
+        // Only top-right and bottom-left neighbors
+        displayTile = "doubleNook";
+        rotation = 0;
         break;
-      case !topLeft && !!topRight && !botLeft && !botRight:
-        atlasIndex = "tr"; // Only top-right neighbor
+      case checkDirections(true, false, false, true):
+        // Only top-left and bottom-right neighbors
+        displayTile = "doubleNook";
+        rotation = 90;
         break;
-      case !topLeft && !topRight && !!botLeft && !botRight:
-        atlasIndex = "bl"; // Only bottom-left neighbor
+      // ===========================================
+      case checkDirections(false, false, false, true):
+        // Only bottom-right neighbor
+        displayTile = "corner";
+        rotation = 0;
         break;
-      case !topLeft && !topRight && !botLeft && !!botRight:
-        atlasIndex = "br"; // Only bottom-right neighbor
+      case checkDirections(false, false, true, false):
+        // Only bottom-left neighbor
+        displayTile = "corner";
+        rotation = 90;
         break;
-      default:
-        atlasIndex = ""; // No neighbors
+      case checkDirections(true, false, false, false):
+        // Only top-left neighbor
+        displayTile = "corner";
+        rotation = 180;
+        break;
+      case checkDirections(false, true, false, false):
+        // Only top-right neighbor
+        displayTile = "corner";
+        rotation = 270;
         break;
     }
 
-    // Set displayTiles[y][x] = atlasIndex;
-    this.displayTiles[y][x] = atlasIndex;
+    if (!displayTile) return;
+    // this.displayTiles[y][x] = displayTile;
+    this.displayTiles = {
+      ...(this.displayTiles || {}),
+      [y]: {
+        ...(this.displayTiles[y] || {}),
+        [x]: { tile: displayTile, rotation }
+      }
+    };
   }
 
   updateDisplayTilesAround(x: number, y: number) {
@@ -183,35 +252,113 @@ export class ManageTiles {
   }
 
   setWorldTile(x: number, y: number, type: string) {
-    this.worldTiles[y][x] = type;
-    this.updateDisplayTilesAround(x, y);
+    x = x - this.size / 2;
+    y = y - this.size / 2;
+
+    this.worldTiles = {
+      ...(this.worldTiles || {}),
+      [y / this.size]: {
+        ...(this.worldTiles[y / this.size] || {}),
+        [x / this.size]: type
+      }
+    };
+    this.updateDisplayTilesAround(x / this.size, y / this.size);
   }
 
   removeWorldTile(x: number, y: number) {
-    this.worldTiles[y][x] = "";
-    this.updateDisplayTilesAround(x, y);
+    this.updateDisplayTilesAround(x / this.size, y / this.size);
   }
 
-  render({ ctx }: { ctx: CanvasRenderingContext2D }) {
+  private getVisibleTilesRange(camera: Camera) {
+    const visibleTilesRange = {
+      x: {
+        min: Math.floor(camera.x / this.size) - 1,
+        max: Math.ceil((camera.x + camera.width) / this.size) + 1
+      },
+      y: {
+        min: Math.floor(camera.y / this.size) - 1,
+        max: Math.ceil((camera.y + camera.height) / this.size) + 1
+      }
+    };
+    return visibleTilesRange;
+  }
+
+  private drawTilePart(
+    x: number,
+    y: number,
+    tile: string,
+    displayType: { tile: keyof Tile; rotation: number }
+  ) {
+    const displayTypeCases: Record<keyof Tile, string> = {
+      center: "white",
+      corner: "lightgreen",
+      straight: "lightred",
+      nook: "lightyellow",
+      doubleNook: "lightblue"
+    };
+
+    this.canvasDraw.drawImage({
+      image: this.tiles[tile][displayType.tile],
+      width: this.size / 2 + 1,
+      height: this.size / 2 + 1,
+      x,
+      y,
+      rotate: displayType.rotation
+    });
+  }
+
+  render({ ctx, camera }: { ctx: CanvasRenderingContext2D; camera: Camera }) {
     // Draw display tiles
     ctx.save();
+    // Apply camera translation and zoom
+    const cameraPos = camera.getFinalPosition();
+    ctx.translate(-cameraPos.x * camera.zoom, -cameraPos.y * camera.zoom);
+    ctx.scale(camera.zoom, camera.zoom);
+
     ctx.globalAlpha = 0.5;
-    for (let y = 0; y < this.displayTiles.length; y++) {
-      for (let x = 0; x < this.displayTiles[y].length; x++) {
-        const tile = this.displayTiles[y][x];
-        const worldTile = this.worldTiles[y][x];
-        if (tile) {
-          const image = new Image();
-          image.src = this.tiles[worldTile][tile];
-          image.onload = () => {
-            ctx.drawImage(
-              image,
+    const visibleTilesRange = this.getVisibleTilesRange(camera);
+
+    for (let y = visibleTilesRange.y.min; y < visibleTilesRange.y.max; y++) {
+      for (let x = visibleTilesRange.x.min; x < visibleTilesRange.x.max; x++) {
+        const tileType = this.worldTiles[y]?.[x];
+        const displayTile_tl = this.displayTiles[y]?.[x];
+        const displayTile_tr = this.displayTiles[y]?.[x + 1];
+        const displayTile_bl = this.displayTiles[y + 1]?.[x];
+        const displayTile_br = this.displayTiles[y + 1]?.[x + 1];
+
+        if (tileType) {
+          if (displayTile_tl) {
+            this.drawTilePart(
               x * this.size,
               y * this.size,
-              this.size,
-              this.size
+              tileType,
+              displayTile_tl
             );
-          };
+          }
+          if (displayTile_tr) {
+            this.drawTilePart(
+              x * this.size + this.size / 2,
+              y * this.size,
+              tileType,
+              displayTile_tr
+            );
+          }
+          if (displayTile_bl) {
+            this.drawTilePart(
+              x * this.size,
+              y * this.size + this.size / 2,
+              tileType,
+              displayTile_bl
+            );
+          }
+          if (displayTile_br) {
+            this.drawTilePart(
+              x * this.size + this.size / 2,
+              y * this.size + this.size / 2,
+              tileType,
+              displayTile_br
+            );
+          }
         }
       }
     }

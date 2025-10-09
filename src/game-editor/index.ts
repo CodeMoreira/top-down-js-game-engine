@@ -6,6 +6,7 @@ import "./components/custtom-tabs";
 import { createRef, ref } from "lit/directives/ref.js";
 import { SetupInputs } from "./setup-inputs";
 import { GameObject } from "./engine/objects/game-object";
+import { loadImage } from "./engine/utils/load-image";
 
 const objectOptions = {
   staticObjects: {},
@@ -39,53 +40,12 @@ const objectOptions = {
 };
 
 const tiles = {
-  tile: {
-    "tl-tr-br-bl":
-      "https://mobileimages.lowes.com/productimages/7701b713-cd4d-4a14-8152-7d09b1aebd9e/00376230.jpg?size=pdhism",
-    "tl-tr-br":
-      "https://mobileimages.lowes.com/productimages/7701b713-cd4d-4a14-8152-7d09b1aebd9e/00376230.jpg?size=pdhism",
-    "tl-tr-bl":
-      "https://mobileimages.lowes.com/productimages/7701b713-cd4d-4a14-8152-7d09b1aebd9e/00376230.jpg?size=pdhism",
-    "tl-br-bl":
-      "https://mobileimages.lowes.com/productimages/7701b713-cd4d-4a14-8152-7d09b1aebd9e/00376230.jpg?size=pdhism",
-    "tr-br-bl":
-      "https://mobileimages.lowes.com/productimages/7701b713-cd4d-4a14-8152-7d09b1aebd9e/00376230.jpg?size=pdhism",
-    "tl-tr":
-      "https://mobileimages.lowes.com/productimages/7701b713-cd4d-4a14-8152-7d09b1aebd9e/00376230.jpg?size=pdhism",
-    "bl-br":
-      "https://mobileimages.lowes.com/productimages/7701b713-cd4d-4a14-8152-7d09b1aebd9e/00376230.jpg?size=pdhism",
-    "tl-bl":
-      "https://mobileimages.lowes.com/productimages/7701b713-cd4d-4a14-8152-7d09b1aebd9e/00376230.jpg?size=pdhism",
-    "tr-br":
-      "https://mobileimages.lowes.com/productimages/7701b713-cd4d-4a14-8152-7d09b1aebd9e/00376230.jpg?size=pdhism",
-    tl: "https://mobileimages.lowes.com/productimages/7701b713-cd4d-4a14-8152-7d09b1aebd9e/00376230.jpg?size=pdhism",
-    tr: "https://mobileimages.lowes.com/productimages/7701b713-cd4d-4a14-8152-7d09b1aebd9e/00376230.jpg?size=pdhism",
-    bl: "https://mobileimages.lowes.com/productimages/7701b713-cd4d-4a14-8152-7d09b1aebd9e/00376230.jpg?size=pdhism",
-    br: "https://mobileimages.lowes.com/productimages/7701b713-cd4d-4a14-8152-7d09b1aebd9e/00376230.jpg?size=pdhism"
-  },
-  brick: {
-    "tl-tr-br-bl":
-      "https://bricktiles.com/wp-content/uploads/2019/05/Smooth-Facing-Brick-Tile-636-Red.jpg",
-    "tl-tr-br":
-      "https://bricktiles.com/wp-content/uploads/2019/05/Smooth-Facing-Brick-Tile-636-Red.jpg",
-    "tl-tr-bl":
-      "https://bricktiles.com/wp-content/uploads/2019/05/Smooth-Facing-Brick-Tile-636-Red.jpg",
-    "tl-br-bl":
-      "https://bricktiles.com/wp-content/uploads/2019/05/Smooth-Facing-Brick-Tile-636-Red.jpg",
-    "tr-br-bl":
-      "https://bricktiles.com/wp-content/uploads/2019/05/Smooth-Facing-Brick-Tile-636-Red.jpg",
-    "tl-tr":
-      "https://bricktiles.com/wp-content/uploads/2019/05/Smooth-Facing-Brick-Tile-636-Red.jpg",
-    "bl-br":
-      "https://bricktiles.com/wp-content/uploads/2019/05/Smooth-Facing-Brick-Tile-636-Red.jpg",
-    "tl-bl":
-      "https://bricktiles.com/wp-content/uploads/2019/05/Smooth-Facing-Brick-Tile-636-Red.jpg",
-    "tr-br":
-      "https://bricktiles.com/wp-content/uploads/2019/05/Smooth-Facing-Brick-Tile-636-Red.jpg",
-    tl: "https://bricktiles.com/wp-content/uploads/2019/05/Smooth-Facing-Brick-Tile-636-Red.jpg",
-    tr: "https://bricktiles.com/wp-content/uploads/2019/05/Smooth-Facing-Brick-Tile-636-Red.jpg",
-    bl: "https://bricktiles.com/wp-content/uploads/2019/05/Smooth-Facing-Brick-Tile-636-Red.jpg",
-    br: "https://bricktiles.com/wp-content/uploads/2019/05/Smooth-Facing-Brick-Tile-636-Red.jpg"
+  test: {
+    center: await loadImage("/images/center.png"),
+    corner: await loadImage("/images/corner.png"),
+    straight: await loadImage("/images/straight.png"),
+    nook: await loadImage("/images/nook.png"),
+    doubleNook: await loadImage("/images/double-nook.png")
   }
 };
 
@@ -217,7 +177,7 @@ class GameEditor extends LitElement {
   viewportRef = createRef<HTMLDivElement>();
 
   @state()
-  accessor devMode: boolean = false;
+  accessor devMode: boolean = true;
   accessor inputs: SetupInputs | undefined;
   accessor cameraDragActive: boolean = false;
   accessor lastDragPos: { x: number; y: number } | null = null;
@@ -341,15 +301,31 @@ class GameEditor extends LitElement {
     const addTitleOnClick = () => {
       if (this.inputs) {
         if (this.inputs.mouse.left) {
-          // hightlight tile on world
+          console.log("Adding tile", {
+            tileToAdd: this.tileToAdd,
+            tileHighlighted: this.tileHighlighted,
+            tiles: this.engine.tiles
+          });
+
+          if (this.tileToAdd && this.tileHighlighted && this.engine.tiles) {
+            this.engine.tiles.setWorldTile(
+              this.tileHighlighted.object.x || 0,
+              this.tileHighlighted.object.y || 0,
+              this.tileToAdd
+            );
+
+            console.log(this.engine.tiles.worldTiles);
+          }
         }
       }
     };
 
-    moveCameraOnScrollDrag();
-    zoomCameraOnMouseWheel();
-    moveTileHighlighted();
-    addTitleOnClick();
+    if (this.devMode) {
+      moveCameraOnScrollDrag();
+      zoomCameraOnMouseWheel();
+      moveTileHighlighted();
+      addTitleOnClick();
+    }
   }
 
   render() {

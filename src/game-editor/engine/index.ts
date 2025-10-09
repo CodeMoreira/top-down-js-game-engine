@@ -43,6 +43,7 @@ export default class Engine extends CanvasDraw {
 
   setTiles(tiles: ManageTilesProps["tiles"]) {
     this.tiles = new ManageTiles({
+      canvasDraw: this,
       tiles,
       size: this.gridSize
     });
@@ -134,7 +135,7 @@ export default class Engine extends CanvasDraw {
       this.drawGrid();
     }
 
-    this.tiles?.render({ ctx: this.ctx });
+    this.tiles?.render({ ctx: this.ctx, camera: this.camera });
     this.ctx.restore();
   }
 
