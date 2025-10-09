@@ -270,14 +270,15 @@ export class ManageTiles {
   }
 
   private getVisibleTilesRange(camera: Camera) {
+    const zoom = camera.zoom;
     const visibleTilesRange = {
       x: {
         min: Math.floor(camera.x / this.size) - 1,
-        max: Math.ceil((camera.x + camera.width) / this.size) + 1
+        max: Math.ceil((camera.x + camera.width / zoom) / this.size) + 1
       },
       y: {
         min: Math.floor(camera.y / this.size) - 1,
-        max: Math.ceil((camera.y + camera.height) / this.size) + 1
+        max: Math.ceil((camera.y + camera.height / zoom) / this.size) + 1
       }
     };
     return visibleTilesRange;
