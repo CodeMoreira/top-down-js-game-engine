@@ -2,7 +2,7 @@ import { html, css, LitElement } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import Engine from "./engine";
 
-import "./components/custtom-tabs";
+import "./components/custom-tabs";
 import { createRef, ref } from "lit/directives/ref.js";
 import { SetupInputs } from "./setup-inputs";
 import { GameObject } from "./engine/objects/game-object";
@@ -97,10 +97,8 @@ class GameEditor extends LitElement {
 
     /* layout */
     .wrapper {
-      display: grid;
-      grid-template-columns: 250px 1fr 400px;
-      grid-template-rows: 1fr;
-      grid-template-areas: "inspector viewport general-tools";
+      display: flex;
+      width: 100%;
       height: 100%;
       background-color: var(--color-complementary500);
     }
@@ -160,13 +158,26 @@ class GameEditor extends LitElement {
     }
     /* text variants */
 
+    .inspector {
+      width: 250px;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
     .viewport {
-      grid-area: viewport;
-      max-width: 100%;
+      flex: 1;
       overflow: hidden;
       display: flex;
       justify-content: center;
       align-items: center;
+    }
+
+    .general-tools {
+      width: 400px;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
     }
   `;
 
@@ -329,50 +340,79 @@ class GameEditor extends LitElement {
   }
 
   render() {
-    const inspectorTabs = [
-      {
-        title: "Scene",
-        content: html`
-          <div>
-            ${this.engine.objects.map(
-              (object) =>
-                html` <button class="button-primary">${object.name}</button> `
-            )}
-          </div>
-        `
-      }
-    ];
-
-    const editorTabs = [
-      {
-        title: "General Tools",
-        content: html`
-          <div>
-            ${Object.keys(tiles).map(
-              (tile) =>
-                html`
-                  <button
-                    class="button-primary"
-                    @click=${() => (this.tileToAdd = tile)}
-                  >
-                    ${tile}
-                  </button>
-                `
-            )}
-          </div>
-        `
-      }
-    ];
-
     return html`
       <div class="wrapper">
         <link
           href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap"
           rel="stylesheet"
         />
-        <custtom-tabs .items=${inspectorTabs}></custtom-tabs>
+        ${this.devMode
+          ? html`
+              <aside class="inspector">
+                <custom-tabs>
+                  <div slot="panel" name="Scene">
+                    ${this.engine.objects.map(
+                      (object) =>
+                        html`
+                          <button class="button-primary">${object.name}</button>
+                        `
+                    )}
+                  </div>
+
+                  <div slot="panel" name="tab two">
+                    ${this.engine.objects.map(
+                      (object) =>
+                        html`
+                          <button class="button-primary">${object.name}</button>
+                        `
+                    )}
+                  </div>
+
+                  <div slot="panel" name="tab three">
+                    ${this.engine.objects.map(
+                      (object) =>
+                        html`
+                          <button class="button-primary">${object.name}</button>
+                        `
+                    )}
+                  </div>
+
+                  <div slot="panel" name="tab four">
+                    ${this.engine.objects.map(
+                      (object) =>
+                        html`
+                          <button class="button-primary">${object.name}</button>
+                        `
+                    )}
+                  </div>
+                </custom-tabs>
+              </aside>
+            `
+          : ""}
+
         <div class="viewport" ${ref(this.viewportRef)}></div>
-        <custtom-tabs .items=${editorTabs}></custtom-tabs>
+
+        ${this.devMode
+          ? html`
+              <aside class="inspector">
+                <custom-tabs>
+                  <section slot="panel" name="General Tools">
+                    ${Object.keys(tiles).map(
+                      (tile) =>
+                        html`
+                          <button
+                            class="button-primary"
+                            @click=${() => (this.tileToAdd = tile)}
+                          >
+                            ${tile}
+                          </button>
+                        `
+                    )}
+                  </section>
+                </custom-tabs>
+              </aside>
+            `
+          : ""}
       </div>
     `;
   }
