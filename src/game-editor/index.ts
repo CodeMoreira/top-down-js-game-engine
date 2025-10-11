@@ -7,6 +7,7 @@ import { createRef, ref } from "lit/directives/ref.js";
 import { SetupInputs } from "./setup-inputs";
 import { GameObject } from "./engine/objects/game-object";
 import { loadImage } from "./engine/utils/load-image";
+import { globalStyles } from "./styles/globals";
 
 const objectOptions = {
   staticObjects: {},
@@ -51,135 +52,40 @@ const tiles = {
 
 @customElement("game-editor")
 class GameEditor extends LitElement {
-  static styles = css`
-    :host {
-      /* color palette */
-      --color-primary50: #eaeffd;
-      --color-primary75: #a9bff6;
-      --color-primary100: #86a5f2;
-      --color-primary200: #527eec;
-      --color-primary300: #2e63e8;
-      --color-primary400: #2045a2;
-      --color-primary500: #1c3c8e;
+  static styles = [
+    globalStyles,
+    css`
+      /* layout */
+      .wrapper {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        background-color: var(--color-complementary500);
+      }
 
-      --color-secoundary50: #f8eafd;
-      --color-secoundary75: #e1aaf6;
-      --color-secoundary100: #d587f2;
-      --color-secoundary200: #c353ec;
-      --color-secoundary300: #b730e8;
-      --color-secoundary400: #8022a2;
-      --color-secoundary500: #701d8e;
+      .inspector {
+        width: 250px;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+      }
 
-      --color-complementary50: #e9e9ea;
-      --color-complementary75: #a4a6a9;
-      --color-complementary100: #7e8185;
-      --color-complementary200: #474b51;
-      --color-complementary300: #21262d;
-      --color-complementary400: #171b1f;
-      --color-complementary500: #14171b;
-      /* color palette */
-    }
+      .viewport {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    .button-primary {
-      cursor: pointer;
-      background-color: var(--color-primary500);
-      color: var(--color-complementary50);
-      border: 1px solid var(--color-primary500);
-      padding: 10px 20px;
-      border-radius: 5px;
-    }
-
-    /* layout */
-    .wrapper {
-      display: flex;
-      width: 100%;
-      height: 100%;
-      background-color: var(--color-complementary500);
-    }
-
-    .wrapper * {
-      color: var(--color-complementary50);
-      font-family: "Poppins", sans-serif;
-    }
-
-    .wrapper div {
-      background-color: var(--color-complementary500);
-    }
-
-    /* text variants */
-    .wrapper h1 {
-      font-size: 34px;
-      font-weight: 600;
-    }
-
-    .wrapper h2 {
-      font-size: 30px;
-      font-weight: 600;
-    }
-
-    .wrapper h3 {
-      font-size: 26px;
-      font-weight: 600;
-    }
-
-    .wrapper h4 {
-      font-size: 22px;
-      font-weight: 600;
-    }
-
-    .wrapper label {
-      font-size: 16px;
-      font-weight: 600;
-    }
-
-    .wrapper span {
-      font-size: 16px;
-      font-weight: 400;
-      color: var(--color-complementary75);
-    }
-
-    .wrapper p {
-      font-size: 16px;
-      font-weight: 400;
-      color: var(--color-complementary75);
-    }
-
-    .wrapper a {
-      font-size: 16px;
-      font-weight: 600;
-      text-decoration: underline;
-      color: var(--color-complementary75);
-    }
-    /* text variants */
-
-    .inspector {
-      width: 250px;
-      overflow: auto;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .viewport {
-      flex: 1;
-      overflow: hidden;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .general-tools {
-      width: 400px;
-      overflow: auto;
-      display: flex;
-      flex-direction: column;
-    }
-  `;
+      .general-tools {
+        width: 400px;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+      }
+    `
+  ];
 
   private engine = new Engine({
     cameraStartPosition: { x: 0, y: 0 }
@@ -198,7 +104,13 @@ class GameEditor extends LitElement {
     index: number;
     object: GameObject;
   } | null = null;
-  accessor tileToAdd: string | null = null;
+  accessor selectedTile: string | null = null;
+
+  accessor selectedObject: GameObject | null = null;
+
+  handleSelectObject(object: GameObject) {
+    this.selectedObject = object;
+  }
 
   firstUpdated() {
     if (this.viewportRef.value) {
@@ -312,30 +224,27 @@ class GameEditor extends LitElement {
     const addTitleOnClick = () => {
       if (this.inputs) {
         if (this.inputs.mouse.left) {
-          console.log("Adding tile", {
-            tileToAdd: this.tileToAdd,
-            tileHighlighted: this.tileHighlighted,
-            tiles: this.engine.tiles
-          });
-
-          if (this.tileToAdd && this.tileHighlighted && this.engine.tiles) {
+          if (this.selectedTile && this.tileHighlighted && this.engine.tiles) {
             this.engine.tiles.setWorldTile(
               this.tileHighlighted.object.x || 0,
               this.tileHighlighted.object.y || 0,
-              this.tileToAdd
+              this.selectedTile
             );
-
-            console.log(this.engine.tiles.worldTiles);
           }
         }
       }
     };
 
     if (this.devMode) {
+      this.engine.tiles && (this.engine.tiles.showGrid = true);
+      this.engine.showWorldGrid = true;
       moveCameraOnScrollDrag();
       zoomCameraOnMouseWheel();
       moveTileHighlighted();
       addTitleOnClick();
+    } else {
+      this.engine.tiles && (this.engine.tiles.showGrid = false);
+      this.engine.showWorldGrid = false;
     }
   }
 
@@ -354,34 +263,16 @@ class GameEditor extends LitElement {
                     ${this.engine.objects.map(
                       (object) =>
                         html`
-                          <button class="button-primary">${object.name}</button>
-                        `
-                    )}
-                  </div>
-
-                  <div slot="panel" name="tab two">
-                    ${this.engine.objects.map(
-                      (object) =>
-                        html`
-                          <button class="button-primary">${object.name}</button>
-                        `
-                    )}
-                  </div>
-
-                  <div slot="panel" name="tab three">
-                    ${this.engine.objects.map(
-                      (object) =>
-                        html`
-                          <button class="button-primary">${object.name}</button>
-                        `
-                    )}
-                  </div>
-
-                  <div slot="panel" name="tab four">
-                    ${this.engine.objects.map(
-                      (object) =>
-                        html`
-                          <button class="button-primary">${object.name}</button>
+                          <button
+                            class="button-element ${object ===
+                            this.selectedObject
+                              ? "active"
+                              : ""}"
+                            style="padding-left: ${1 * 24}px;"
+                            @click=${() => this.handleSelectObject(object)}
+                          >
+                            ${object.name}
+                          </button>
                         `
                     )}
                   </div>
@@ -396,19 +287,19 @@ class GameEditor extends LitElement {
           ? html`
               <aside class="inspector">
                 <custom-tabs>
-                  <section slot="panel" name="General Tools">
+                  <div slot="panel" name="General Tools">
                     ${Object.keys(tiles).map(
                       (tile) =>
                         html`
                           <button
                             class="button-primary"
-                            @click=${() => (this.tileToAdd = tile)}
+                            @click=${() => (this.selectedTile = tile)}
                           >
                             ${tile}
                           </button>
                         `
                     )}
-                  </section>
+                  </div>
                 </custom-tabs>
               </aside>
             `
