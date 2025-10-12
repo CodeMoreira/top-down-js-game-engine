@@ -94,153 +94,155 @@ export class ManageTiles {
   }
 
   drawTileGrid({ left, top, right, bottom, ctx }: TileGridProps) {
-    if (!this.showGrid) return;
+    if (this.showGrid) {
+      // display tile grid (offset by half a tile)
+      ctx.beginPath();
+      ctx.strokeStyle = this.gridColor;
+      ctx.lineWidth = 1;
+      for (
+        let gx =
+          Math.floor((left - this.size / 2) / this.size) * this.size +
+          this.size / 2;
+        gx < right;
+        gx += this.size
+      ) {
+        ctx.moveTo(gx, top);
+        ctx.lineTo(gx, bottom);
+      }
+      for (
+        let gy =
+          Math.floor((top - this.size / 2) / this.size) * this.size +
+          this.size / 2;
+        gy < bottom;
+        gy += this.size
+      ) {
+        ctx.moveTo(left, gy);
+        ctx.lineTo(right, gy);
+      }
+      ctx.stroke();
+      ctx.closePath();
+    }
 
-    // display tile grid (offset by half a tile)
-    ctx.save();
-    ctx.beginPath();
-    ctx.strokeStyle = this.gridColor;
-    ctx.lineWidth = 1;
-    for (
-      let gx =
-        Math.floor((left - this.size / 2) / this.size) * this.size +
-        this.size / 2;
-      gx < right;
-      gx += this.size
-    ) {
-      ctx.moveTo(gx, top);
-      ctx.lineTo(gx, bottom);
-    }
-    for (
-      let gy =
-        Math.floor((top - this.size / 2) / this.size) * this.size +
-        this.size / 2;
-      gy < bottom;
-      gy += this.size
-    ) {
-      ctx.moveTo(left, gy);
-      ctx.lineTo(right, gy);
-    }
-    ctx.stroke();
-    ctx.closePath();
     ctx.restore();
   }
 
   calculateDisplayTile(x: number, y: number) {
     // Get 4 neighbors (topLeft, topRight, botLeft, botRight)
-    const topLeft = this.worldTiles[y - 1]?.[x - 1] || "";
-    const topRight = this.worldTiles[y - 1]?.[x] || "";
-    const botLeft = this.worldTiles[y]?.[x - 1] || "";
-    const botRight = this.worldTiles[y]?.[x] || "";
+    const wTopLeft = this.worldTiles[y - 1]?.[x - 1] || "";
+    const wTopRight = this.worldTiles[y - 1]?.[x] || "";
+    const wBotLeft = this.worldTiles[y]?.[x - 1] || "";
+    const wBotRight = this.worldTiles[y]?.[x] || "";
 
-    const checkDirections = (
+    const checkWorldDirections = (
       tl: boolean,
       tr: boolean,
       bl: boolean,
       br: boolean
     ) => {
       return (
-        !!topLeft === tl &&
-        !!topRight === tr &&
-        !!botLeft === bl &&
-        !!botRight === br
+        !!wTopLeft === tl &&
+        !!wTopRight === tr &&
+        !!wBotLeft === bl &&
+        !!wBotRight === br
       );
     };
-    // Use a lookup table (like your Godot script) to pick the right display tile
     let displayTile: keyof Tile | null = null;
     let rotation = 0;
-
     switch (true) {
-      case checkDirections(true, true, true, true):
+      case checkWorldDirections(true, true, true, true):
         // All neighbors are set
         displayTile = "center";
         rotation = 0;
         break;
       // ===========================================
-      case checkDirections(true, false, true, true):
-        // Missing top right
-        displayTile = "nook";
-        rotation = 0;
-        break;
-      case checkDirections(true, true, true, false):
-        // Missing bottom right
-        displayTile = "nook";
-        rotation = 90;
-        break;
-      case checkDirections(true, true, false, true):
-        // Missing bottom left
-        displayTile = "nook";
-        rotation = 180;
-        break;
-      case checkDirections(false, true, true, true):
-        // Missing top left
-        displayTile = "nook";
-        rotation = 270;
-        break;
-      // ===========================================
-      case checkDirections(true, false, true, false):
+      case checkWorldDirections(true, false, true, false):
         // Only left neighbors
         displayTile = "straight";
         rotation = 0;
         break;
-      case checkDirections(true, true, false, false):
+      case checkWorldDirections(true, true, false, false):
         // Only top neighbors
         displayTile = "straight";
         rotation = 90;
         break;
-      case checkDirections(false, true, false, true):
+      case checkWorldDirections(false, true, false, true):
         // Only right neighbors
         displayTile = "straight";
         rotation = 180;
         break;
-      case checkDirections(false, false, true, true):
+      case checkWorldDirections(false, false, true, true):
         // Only bottom neighbors
         displayTile = "straight";
         rotation = 270;
         break;
       // ===========================================
-      case checkDirections(false, true, true, false):
+      case checkWorldDirections(true, false, true, true):
+        // Missing top right
+        displayTile = "nook";
+        rotation = 0;
+        break;
+      case checkWorldDirections(true, true, true, false):
+        // Missing bottom right
+        displayTile = "nook";
+        rotation = 90;
+        break;
+      case checkWorldDirections(true, true, false, true):
+        // Missing bottom left
+        displayTile = "nook";
+        rotation = 180;
+        break;
+      case checkWorldDirections(false, true, true, true):
+        // Missing top left
+        displayTile = "nook";
+        rotation = 270;
+        break;
+      // ===========================================
+      case checkWorldDirections(false, true, true, false):
         // Only top-right and bottom-left neighbors
         displayTile = "doubleNook";
         rotation = 0;
         break;
-      case checkDirections(true, false, false, true):
+      case checkWorldDirections(true, false, false, true):
         // Only top-left and bottom-right neighbors
         displayTile = "doubleNook";
         rotation = 90;
         break;
       // ===========================================
-      case checkDirections(false, false, false, true):
+      case checkWorldDirections(false, false, false, true):
         // Only bottom-right neighbor
         displayTile = "corner";
         rotation = 0;
         break;
-      case checkDirections(false, false, true, false):
+      case checkWorldDirections(false, false, true, false):
         // Only bottom-left neighbor
         displayTile = "corner";
         rotation = 90;
         break;
-      case checkDirections(true, false, false, false):
+      case checkWorldDirections(true, false, false, false):
         // Only top-left neighbor
         displayTile = "corner";
         rotation = 180;
         break;
-      case checkDirections(false, true, false, false):
+      case checkWorldDirections(false, true, false, false):
         // Only top-right neighbor
         displayTile = "corner";
         rotation = 270;
         break;
     }
 
-    if (!displayTile) return;
-    // this.displayTiles[y][x] = displayTile;
-    this.displayTiles = {
-      ...(this.displayTiles || {}),
-      [y]: {
-        ...(this.displayTiles[y] || {}),
-        [x]: { tile: displayTile, rotation }
+    if (displayTile) {
+      this.displayTiles = {
+        ...(this.displayTiles || {}),
+        [y]: {
+          ...(this.displayTiles[y] || {}),
+          [x]: { tile: displayTile, rotation }
+        }
+      };
+    } else {
+      if (this.displayTiles[y]?.[x]) {
+        delete this.displayTiles[y][x];
       }
-    };
+    }
   }
 
   updateDisplayTilesAround(x: number, y: number) {
@@ -266,6 +268,14 @@ export class ManageTiles {
   }
 
   removeWorldTile(x: number, y: number) {
+    x = x - this.size / 2;
+    y = y - this.size / 2;
+
+    if (!this.worldTiles[y / this.size]) return;
+    if (!this.worldTiles[y / this.size][x / this.size]) return;
+
+    delete this.worldTiles[y / this.size][x / this.size];
+
     this.updateDisplayTilesAround(x / this.size, y / this.size);
   }
 
@@ -300,8 +310,8 @@ export class ManageTiles {
 
     this.canvasDraw.drawImage({
       image: this.tiles[tile][displayType.tile],
-      width: this.size / 2 + 1,
-      height: this.size / 2 + 1,
+      width: this.size + 0.5,
+      height: this.size + 0.5,
       x,
       y,
       rotate: displayType.rotation
@@ -315,8 +325,6 @@ export class ManageTiles {
     const cameraPos = camera.getFinalPosition();
     ctx.translate(-cameraPos.x * camera.zoom, -cameraPos.y * camera.zoom);
     ctx.scale(camera.zoom, camera.zoom);
-
-    ctx.globalAlpha = 0.5;
     const visibleTilesRange = this.getVisibleTilesRange(camera);
 
     for (let y = visibleTilesRange.y.min; y < visibleTilesRange.y.max; y++) {
@@ -330,8 +338,8 @@ export class ManageTiles {
         if (tileType) {
           if (displayTile_tl) {
             this.drawTilePart(
-              x * this.size,
-              y * this.size,
+              x * this.size - this.size / 2,
+              y * this.size - this.size / 2,
               tileType,
               displayTile_tl
             );
@@ -339,14 +347,14 @@ export class ManageTiles {
           if (displayTile_tr) {
             this.drawTilePart(
               x * this.size + this.size / 2,
-              y * this.size,
+              y * this.size - this.size / 2,
               tileType,
               displayTile_tr
             );
           }
           if (displayTile_bl) {
             this.drawTilePart(
-              x * this.size,
+              x * this.size - this.size / 2,
               y * this.size + this.size / 2,
               tileType,
               displayTile_bl

@@ -21,8 +21,8 @@ export default class Engine extends CanvasDraw {
   public collisionBoxes: CollisionBoxObject[] = [];
 
   public showWorldGrid: boolean = true;
-  public gridSize: number = 50;
-  public gridColor: string = "rgba(255,255,255,0.20)";
+  public gridSize: number = 100;
+  public gridColor: string = "rgba(255,255,255,0.08)";
 
   public tiles: ManageTiles | null = null;
 
@@ -73,30 +73,34 @@ export default class Engine extends CanvasDraw {
     const right = x + width / zoom;
     const bottom = y + height / zoom;
 
+    this.ctx.save();
     this.tiles?.drawTileGrid({ left, top, right, bottom, ctx: this.ctx });
 
-    // world tile grid
-    this.ctx.beginPath();
-    this.ctx.strokeStyle = this.gridColor;
-    this.ctx.lineWidth = 2;
-    for (
-      let gx = Math.floor(left / this.gridSize) * this.gridSize;
-      gx < right;
-      gx += this.gridSize
-    ) {
-      this.ctx.moveTo(gx, top);
-      this.ctx.lineTo(gx, bottom);
+    if (this.showWorldGrid) {
+      // world tile grid
+      this.ctx.beginPath();
+      this.ctx.strokeStyle = this.gridColor;
+      this.ctx.lineWidth = 2;
+      for (
+        let gx = Math.floor(left / this.gridSize) * this.gridSize;
+        gx < right;
+        gx += this.gridSize
+      ) {
+        this.ctx.moveTo(gx, top);
+        this.ctx.lineTo(gx, bottom);
+      }
+      for (
+        let gy = Math.floor(top / this.gridSize) * this.gridSize;
+        gy < bottom;
+        gy += this.gridSize
+      ) {
+        this.ctx.moveTo(left, gy);
+        this.ctx.lineTo(right, gy);
+      }
+      this.ctx.stroke();
+      this.ctx.closePath();
     }
-    for (
-      let gy = Math.floor(top / this.gridSize) * this.gridSize;
-      gy < bottom;
-      gy += this.gridSize
-    ) {
-      this.ctx.moveTo(left, gy);
-      this.ctx.lineTo(right, gy);
-    }
-    this.ctx.stroke();
-    this.ctx.closePath();
+
     this.ctx.restore();
   }
 
@@ -131,9 +135,7 @@ export default class Engine extends CanvasDraw {
       }
     });
 
-    if (this.showWorldGrid) {
-      this.drawGrid();
-    }
+    this.drawGrid();
 
     this.tiles?.render({ ctx: this.ctx, camera: this.camera });
     this.ctx.restore();

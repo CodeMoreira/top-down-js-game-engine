@@ -84,6 +84,24 @@ class GameEditor extends LitElement {
         display: flex;
         flex-direction: column;
       }
+
+      .tab-container {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-width: 100%;
+        min-height: 100%;
+        padding: 12px;
+      }
+
+      .tab-container section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        border: 2px solid var(--color-complementary300);
+        padding: 12px;
+        border-radius: 5px;
+      }
     `
   ];
 
@@ -260,21 +278,23 @@ class GameEditor extends LitElement {
               <aside class="inspector">
                 <custom-tabs>
                   <div slot="panel" name="Scene">
-                    ${this.engine.objects.map(
-                      (object) =>
-                        html`
-                          <button
-                            class="button-element ${object ===
-                            this.selectedObject
-                              ? "active"
-                              : ""}"
-                            style="padding-left: ${1 * 24}px;"
-                            @click=${() => this.handleSelectObject(object)}
-                          >
-                            ${object.name}
-                          </button>
-                        `
-                    )}
+                    <div class="tab-container">
+                      ${this.engine.objects.map(
+                        (object) =>
+                          html`
+                            <button
+                              class="button-element ${object ===
+                              this.selectedObject
+                                ? "active"
+                                : ""}"
+                              style="padding-left: ${1 * 24}px;"
+                              @click=${() => this.handleSelectObject(object)}
+                            >
+                              ${object.name}
+                            </button>
+                          `
+                      )}
+                    </div>
                   </div>
                 </custom-tabs>
               </aside>
@@ -285,20 +305,35 @@ class GameEditor extends LitElement {
 
         ${this.devMode
           ? html`
-              <aside class="inspector">
+              <aside class="general-tools">
                 <custom-tabs>
                   <div slot="panel" name="General Tools">
-                    ${Object.keys(tiles).map(
-                      (tile) =>
-                        html`
-                          <button
-                            class="button-primary"
-                            @click=${() => (this.selectedTile = tile)}
-                          >
-                            ${tile}
-                          </button>
-                        `
-                    )}
+                    <div class="tab-container">
+                      <section>
+                        <h4>Tiles</h4>
+                        ${Object.entries(tiles).map(([name, tile]) => {
+                          const clonedTile = { ...tile };
+                          clonedTile.center.height = 48;
+                          clonedTile.corner.height = 48;
+                          clonedTile.straight.height = 48;
+                          clonedTile.nook.height = 48;
+                          clonedTile.doubleNook.height = 48;
+
+                          return html`
+                            <button
+                              class="button-primary ${name === this.selectedTile
+                                ? "highlighted"
+                                : ""}"
+                              @click=${() => (this.selectedTile = name)}
+                            >
+                              ${clonedTile.center} ${clonedTile.corner}
+                              ${clonedTile.straight} ${clonedTile.nook}
+                              ${clonedTile.doubleNook}
+                            </button>
+                          `;
+                        })}
+                      </section>
+                    </div>
                   </div>
                 </custom-tabs>
               </aside>

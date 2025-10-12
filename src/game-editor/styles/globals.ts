@@ -10,6 +10,7 @@ export const globalStyles = css`
     --color-primary300: #2e63e8;
     --color-primary400: #2045a2;
     --color-primary500: #1c3c8e;
+    --color-primary600: #142348;
 
     --color-secoundary50: #f8eafd;
     --color-secoundary75: #e1aaf6;
@@ -41,7 +42,7 @@ export const globalStyles = css`
   /* For Firefox */
   :host * {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-complementary300) transparent;
+    scrollbar-color: var(--color-complementary200) transparent;
   }
 
   /* For Webkit browsers (Chrome, Safari, Edge) */
@@ -61,16 +62,12 @@ export const globalStyles = css`
 
   /* On hover, make the scrollbar thumb visible */
   :host *:hover::-webkit-scrollbar-thumb {
-    background-color: var(--color-complementary300);
+    background-color: var(--color-complementary200);
   }
 
   /* Make it slightly more prominent when actively scrolling */
   :host *::-webkit-scrollbar-thumb:active {
-    background-color: var(--color-complementary200);
-  }
-
-  :host div {
-    background-color: var(--color-complementary500);
+    background-color: var(--color-complementary100);
   }
 
   /* text variants */
@@ -121,11 +118,22 @@ export const globalStyles = css`
 
   .button-primary {
     cursor: pointer;
-    background-color: var(--color-primary500);
+    background-color: var(--color-primary300);
     color: var(--color-complementary50);
-    border: 1px solid var(--color-primary500);
-    padding: 10px 20px;
+    border: 2px solid var(--color-primary400);
+    padding: 8px 16px;
     border-radius: 5px;
+    font-size: 16px;
+  }
+
+  .button-primary:hover {
+    background-color: var(--color-primary400);
+    border-color: var(--color-primary500);
+  }
+
+  .button-primary.highlighted {
+    background-color: var(--color-primary500);
+    border-color: var(--color-primary600);
   }
 
   .button-element {
@@ -142,7 +150,7 @@ export const globalStyles = css`
     overflow: hidden;
 
     cursor: pointer;
-    background-color: var(--color-complementary500);
+    background-color: var(--color-complementary400);
     color: var(--color-complementary50);
     padding: 8px 0px;
     border-radius: 5px;

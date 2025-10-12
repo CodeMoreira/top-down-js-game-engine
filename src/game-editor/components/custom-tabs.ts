@@ -43,7 +43,7 @@ export class CustomTabs extends LitElement {
         border: 2px solid transparent;
         border-bottom: none;
         transition: all 0.3s ease;
-        color: var(--color-complementary100, #fff);
+        color: var(--color-complementary100);
         background: transparent;
         white-space: nowrap;
       }
@@ -58,18 +58,11 @@ export class CustomTabs extends LitElement {
       }
 
       ::slotted([slot="panel"]) {
+        flex: 1;
         display: none;
         flex-direction: column;
-        width: 100%;
-        height: 100%;
         overflow: auto;
-      }
-
-      .panel-container {
-        width: 100%;
-        height: 100%;
-        padding: 12px 0 0 12px;
-        background-color: var(--color-complementary300);
+        background-color: var(--color-complementary400);
       }
 
       ::slotted([slot="panel"][selected]) {
@@ -128,9 +121,7 @@ export class CustomTabs extends LitElement {
           )}
         </div>
 
-        <div class="panel-container">
-          <slot name="panel" @slotchange=${this._handleSlotChange}></slot>
-        </div>
+        <slot name="panel" @slotchange=${this._handleSlotChange}></slot>
       </div>
     `;
   }
