@@ -24,7 +24,7 @@ export default class Engine extends CanvasDraw {
   public gridSize: number = 100;
   public gridColor: string = "rgba(255,255,255,0.08)";
 
-  public tiles: ManageTiles | null = null;
+  public manageTiles: ManageTiles;
 
   onStart?: () => void;
   onUpdate?: (deltaTime: number) => void;
@@ -39,12 +39,9 @@ export default class Engine extends CanvasDraw {
       width: this.screenWidth,
       height: this.screenHeight
     });
-  }
 
-  setTiles(tiles: ManageTilesProps["tiles"]) {
-    this.tiles = new ManageTiles({
+    this.manageTiles = new ManageTiles({
       canvasDraw: this,
-      tiles,
       size: this.gridSize
     });
   }
@@ -74,7 +71,7 @@ export default class Engine extends CanvasDraw {
     const bottom = y + height / zoom;
 
     this.ctx.save();
-    this.tiles?.drawTileGrid({ left, top, right, bottom, ctx: this.ctx });
+    this.manageTiles?.drawTileGrid({ left, top, right, bottom, ctx: this.ctx });
 
     if (this.showWorldGrid) {
       // world tile grid
@@ -107,6 +104,9 @@ export default class Engine extends CanvasDraw {
   private render() {
     this.clearScene();
 
+    // Render tiles first so they are behind objects
+    this.manageTiles?.render({ ctx: this.ctx, camera: this.camera });
+
     this.ctx.save();
 
     const cameraPos = this.camera.getFinalPosition();
@@ -137,7 +137,6 @@ export default class Engine extends CanvasDraw {
 
     this.drawGrid();
 
-    this.tiles?.render({ ctx: this.ctx, camera: this.camera });
     this.ctx.restore();
   }
 

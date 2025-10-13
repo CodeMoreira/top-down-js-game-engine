@@ -6,8 +6,12 @@ import "./components/custom-tabs";
 import { createRef, ref } from "lit/directives/ref.js";
 import { SetupInputs } from "./setup-inputs";
 import { GameObject } from "./engine/objects/game-object";
-import { loadImage } from "./engine/utils/load-image";
+import { loadImage, loadImages } from "./engine/utils/load-image";
 import { globalStyles } from "./styles/globals";
+import { splitTileset } from "./engine/utils/split-tileset";
+import { splitObjectGroups } from "./engine/utils/split-object-groupds";
+import { Tile } from "./engine/manage-tiles";
+import { loadScreen } from "./engine/utils/loadScreen";
 
 const objectOptions = {
   staticObjects: {},
@@ -40,16 +44,6 @@ const objectOptions = {
   }
 };
 
-const tiles = {
-  test: {
-    center: await loadImage("/images/center.png"),
-    corner: await loadImage("/images/corner.png"),
-    straight: await loadImage("/images/straight.png"),
-    nook: await loadImage("/images/nook.png"),
-    doubleNook: await loadImage("/images/double-nook.png")
-  }
-};
-
 @customElement("game-editor")
 class GameEditor extends LitElement {
   static styles = [
@@ -78,7 +72,7 @@ class GameEditor extends LitElement {
         align-items: center;
       }
 
-      .general-tools {
+      .general-options {
         width: 400px;
         overflow: auto;
         display: flex;
@@ -97,10 +91,32 @@ class GameEditor extends LitElement {
       .tab-container section {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 24px;
         border: 2px solid var(--color-complementary300);
         padding: 12px;
         border-radius: 5px;
+      }
+
+      .tab-container section > div {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 24px 0;
+        width: 100%;
+        border-top: 2px solid var(--color-complementary300);
+      }
+
+      .upload-tileset {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .tile-preview {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        width: 100%;
       }
     `
   ];
@@ -110,10 +126,13 @@ class GameEditor extends LitElement {
   });
 
   viewportRef = createRef<HTMLDivElement>();
+  uploadTilesetFormRef = createRef<HTMLFormElement>();
 
   @state()
   accessor devMode: boolean = true;
   accessor inputs: SetupInputs | undefined;
+
+  // Camera Drag
   accessor cameraDragActive: boolean = false;
   accessor lastDragPos: { x: number; y: number } | null = null;
   accessor initialCameraPos: { x: number; y: number } | null = null;
@@ -130,8 +149,11 @@ class GameEditor extends LitElement {
     this.selectedObject = object;
   }
 
-  firstUpdated() {
+  async firstUpdated() {
+    loadScreen.show("Initializing load");
+
     if (this.viewportRef.value) {
+      loadScreen.step = "Setting up inputs";
       this.inputs = new SetupInputs({
         debugMode: false,
         parent: this.viewportRef.value,
@@ -142,21 +164,28 @@ class GameEditor extends LitElement {
       this.engine.appendTo(this.viewportRef.value);
     }
 
-    this.engine.setTiles(tiles);
+    loadScreen.step = "Adding tileHighlighted object";
+    this.tileHighlighted = this.engine.addGameObject({
+      name: "tileHighlighted",
+      x: 0,
+      y: 0,
+      width: this.engine.manageTiles.size,
+      height: this.engine.manageTiles.size,
+      backgroundColor: "#ffffff09",
+      border: { width: 1, color: "#ffffff49" }
+    });
 
-    if (this.engine.tiles) {
-      this.tileHighlighted = this.engine.addGameObject({
-        name: "tileHighlighted",
-        x: 0,
-        y: 0,
-        width: this.engine.tiles.size,
-        height: this.engine.tiles.size,
-        backgroundColor: "#ffffff09",
-        border: { width: 1, color: "#ffffff49" }
-      });
+    loadScreen.step = "Getting tiles from local storage";
+    const tiles = localStorage.getItem("tiles");
+    if (tiles) {
+      console.log(JSON.parse(tiles));
+      await this.engine.manageTiles.addMultipleTileTextures(JSON.parse(tiles));
+      this.requestUpdate();
     }
 
+    loadScreen.step = "Starting engine";
     this.engine.start();
+    loadScreen.hide();
   }
 
   updated() {
@@ -222,7 +251,7 @@ class GameEditor extends LitElement {
     };
 
     const moveTileHighlighted = () => {
-      if (this.inputs && this.tileHighlighted && this.engine.tiles) {
+      if (this.inputs && this.tileHighlighted) {
         const convertedPos = this.engine.camera.screenToWorld(
           this.inputs.mouse.x,
           this.inputs.mouse.y
@@ -242,8 +271,8 @@ class GameEditor extends LitElement {
     const addTitleOnClick = () => {
       if (this.inputs) {
         if (this.inputs.mouse.left) {
-          if (this.selectedTile && this.tileHighlighted && this.engine.tiles) {
-            this.engine.tiles.setWorldTile(
+          if (this.selectedTile && this.tileHighlighted) {
+            this.engine.manageTiles.setWorldTile(
               this.tileHighlighted.object.x || 0,
               this.tileHighlighted.object.y || 0,
               this.selectedTile
@@ -254,19 +283,61 @@ class GameEditor extends LitElement {
     };
 
     if (this.devMode) {
-      this.engine.tiles && (this.engine.tiles.showGrid = true);
+      this.engine.manageTiles.showGrid = true;
       this.engine.showWorldGrid = true;
       moveCameraOnScrollDrag();
       zoomCameraOnMouseWheel();
       moveTileHighlighted();
       addTitleOnClick();
     } else {
-      this.engine.tiles && (this.engine.tiles.showGrid = false);
+      this.engine.manageTiles.showGrid = false;
       this.engine.showWorldGrid = false;
     }
   }
 
+  async uploadTileset(e: SubmitEvent) {
+    e.preventDefault();
+
+    const formData = new FormData(e.target as HTMLFormElement);
+    const name = formData.get("name") as string;
+    const file = formData.get("tileset") as File;
+
+    const isFileInputFilled = file && file.size > 0;
+
+    if (!name || !isFileInputFilled) {
+      window.alert("Missing name or file.");
+      return;
+    }
+
+    // use splitTileset
+    const currentTiles = await splitTileset(file);
+    this.engine.manageTiles.addTileTexture(name, {
+      center: currentTiles.center,
+      corner: currentTiles.corner,
+      straight: currentTiles.straight,
+      nook: currentTiles.nook,
+      doubleNook: currentTiles.doubleNook
+    });
+
+    // Reset form
+    this.uploadTilesetFormRef.value?.reset();
+
+    // store in local storage
+    const currentTilesInStorage = localStorage.getItem("tiles");
+    const newTiles = currentTilesInStorage
+      ? JSON.parse(currentTilesInStorage)
+      : {};
+    newTiles[name] = currentTiles;
+    localStorage.setItem("tiles", JSON.stringify(newTiles));
+
+    this.requestUpdate();
+  }
+
   render() {
+    const tilesGroupedByName = Object.keys(this.engine.manageTiles.tiles).length
+      ? splitObjectGroups<Tile>(this.engine.manageTiles.tiles)
+      : [];
+
     return html`
       <div class="wrapper">
         <link
@@ -305,33 +376,98 @@ class GameEditor extends LitElement {
 
         ${this.devMode
           ? html`
-              <aside class="general-tools">
+              <aside class="general-options">
                 <custom-tabs>
-                  <div slot="panel" name="General Tools">
+                  <div slot="panel" name="General Options">
                     <div class="tab-container">
                       <section>
-                        <h4>Tiles</h4>
-                        ${Object.entries(tiles).map(([name, tile]) => {
-                          const clonedTile = { ...tile };
-                          clonedTile.center.height = 48;
-                          clonedTile.corner.height = 48;
-                          clonedTile.straight.height = 48;
-                          clonedTile.nook.height = 48;
-                          clonedTile.doubleNook.height = 48;
+                        <form
+                          class="upload-tileset"
+                          ${ref(this.uploadTilesetFormRef)}
+                          @submit=${this.uploadTileset}
+                        >
+                          <div
+                            style="display: flex; justify-content: space-between; align-items: center;"
+                          >
+                            <h4>Upload tileset</h4>
+                            <a href="/images/tileset-template.png" download>
+                              <span>Download template</span>
+                            </a>
+                          </div>
 
-                          return html`
-                            <button
-                              class="button-primary ${name === this.selectedTile
-                                ? "highlighted"
-                                : ""}"
-                              @click=${() => (this.selectedTile = name)}
-                            >
-                              ${clonedTile.center} ${clonedTile.corner}
-                              ${clonedTile.straight} ${clonedTile.nook}
-                              ${clonedTile.doubleNook}
-                            </button>
-                          `;
-                        })}
+                          <label>
+                            Tile name
+                            <input name="name" type="text" />
+                          </label>
+
+                          <label>
+                            Tileset
+                            <input name="tileset" type="file" />
+                          </label>
+
+                          <button class="button-primary" type="submit">
+                            Upload
+                          </button>
+                        </form>
+
+                        <div>
+                          <h4>Tiles</h4>
+                          ${tilesGroupedByName.length === 0
+                            ? html`<p>No tiles yet, upload some!</p>`
+                            : tilesGroupedByName.map(({ name, data }) => {
+                                const renderButton = (
+                                  tile: Tile,
+                                  fullName: string
+                                ) => {
+                                  const clonedTile = { ...tile };
+
+                                  clonedTile.center.height = 48;
+                                  clonedTile.corner.height = 48;
+                                  clonedTile.straight.height = 48;
+                                  clonedTile.nook.height = 48;
+                                  clonedTile.doubleNook.height = 48;
+
+                                  return html`
+                                    <button
+                                      class="button-primary ${fullName ===
+                                      this.selectedTile
+                                        ? "highlighted"
+                                        : ""}"
+                                      @click=${() =>
+                                        (this.selectedTile = fullName)}
+                                    >
+                                      ${clonedTile.center} ${clonedTile.corner}
+                                      ${clonedTile.straight} ${clonedTile.nook}
+                                      ${clonedTile.doubleNook}
+                                    </button>
+                                  `;
+                                };
+
+                                return html`
+                                  <div class="tile-preview">
+                                    <h4>${name}</h4>
+                                    ${!Array.isArray(data)
+                                      ? renderButton(data, name)
+                                      : html`
+                                          <div class="tile-preview">
+                                            ${data.map(
+                                              ({
+                                                name: childName,
+                                                data: tile
+                                              }) => html`
+                                                <span>${childName}</span>
+                                                ${renderButton(
+                                                  tile,
+                                                  `${name}/${childName}`
+                                                )}
+                                              `
+                                            )}
+                                          </div>
+                                        `}
+                                  </div>
+                                `;
+                              })}
+                        </div>
                       </section>
                     </div>
                   </div>

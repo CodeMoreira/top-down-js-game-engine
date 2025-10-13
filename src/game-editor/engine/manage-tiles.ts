@@ -1,5 +1,6 @@
 import { Camera } from "./camera";
 import CanvasDraw from "./canvas-draw";
+import { loadImages } from "./utils/load-image";
 
 interface TileGridProps {
   left: number;
@@ -9,7 +10,7 @@ interface TileGridProps {
   ctx: CanvasRenderingContext2D;
 }
 
-interface Tile {
+export interface Tile {
   center: HTMLImageElement;
   corner: HTMLImageElement;
   straight: HTMLImageElement;
@@ -66,7 +67,6 @@ type TileKey =
 
 export interface ManageTilesProps {
   canvasDraw: CanvasDraw;
-  tiles: Record<string, Tile>;
   size: number;
 }
 
@@ -76,7 +76,7 @@ export interface ManageTilesProps {
 export class ManageTiles {
   private canvasDraw: CanvasDraw;
 
-  tiles: ManageTilesProps["tiles"];
+  tiles: Record<string, Tile> = {};
   worldTiles: Record<number, Record<number, string>> = {};
   displayTiles: Record<
     number,
@@ -89,8 +89,37 @@ export class ManageTiles {
 
   constructor(props: ManageTilesProps) {
     this.canvasDraw = props.canvasDraw;
-    this.tiles = props.tiles;
     this.size = props.size;
+  }
+
+  async addMultipleTileTextures(
+    data: Record<string, Record<keyof Tile, string>>
+  ) {
+    for (const [name, tile] of Object.entries(data)) {
+      await this.addTileTexture(name, tile);
+    }
+  }
+
+  async addTileTexture(name: string, data: Record<keyof Tile, string>) {
+    const [center, corner, straight, nook, doubleNook] = await loadImages([
+      data.center,
+      data.corner,
+      data.straight,
+      data.nook,
+      data.doubleNook
+    ]);
+
+    this.tiles[name] = {
+      center,
+      corner,
+      straight,
+      nook,
+      doubleNook
+    };
+  }
+
+  removeTileTexture(name: string) {
+    delete this.tiles[name];
   }
 
   drawTileGrid({ left, top, right, bottom, ctx }: TileGridProps) {

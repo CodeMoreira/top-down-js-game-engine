@@ -114,6 +114,16 @@ export const globalStyles = css`
     text-decoration: underline;
     color: var(--color-complementary75);
   }
+
+  :host input {
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--color-complementary75);
+    background-color: var(--color-complementary200);
+    border: 2px solid var(--color-complementary300);
+    padding: 8px 16px;
+    border-radius: 5px;
+  }
   /* text variants */
 
   .button-primary {
