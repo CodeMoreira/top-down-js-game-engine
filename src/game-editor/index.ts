@@ -178,7 +178,6 @@ class GameEditor extends LitElement {
     loadScreen.step = "Getting tiles from local storage";
     const tiles = localStorage.getItem("tiles");
     if (tiles) {
-      console.log(JSON.parse(tiles));
       await this.engine.manageTiles.addMultipleTileTextures(JSON.parse(tiles));
       this.requestUpdate();
     }
@@ -458,7 +457,9 @@ class GameEditor extends LitElement {
                                                 <span>${childName}</span>
                                                 ${renderButton(
                                                   tile,
-                                                  `${name}/${childName}`
+                                                  childName === "default"
+                                                    ? name
+                                                    : `${name}/${childName}`
                                                 )}
                                               `
                                             )}
