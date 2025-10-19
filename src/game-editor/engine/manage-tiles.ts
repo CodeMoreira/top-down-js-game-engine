@@ -77,10 +77,10 @@ export class ManageTiles {
   private canvasDraw: CanvasDraw;
 
   tiles: Record<string, Tile> = {};
-  worldTiles: Record<number, Record<number, string>> = {};
+  worldTiles: Record<string, Record<`${number}/${number}`, boolean>> = {};
   displayTiles: Record<
-    number,
-    Record<number, { tile: keyof Tile; rotation: number }>
+    string,
+    Record<`${number}/${number}`, { tile: keyof Tile; rotation: number }>
   > = {};
 
   showGrid: boolean = true;
@@ -155,12 +155,14 @@ export class ManageTiles {
     ctx.restore();
   }
 
-  calculateDisplayTile(x: number, y: number) {
+  calculateDisplayTile(x: number, y: number, type: string) {
     // Get 4 neighbors (topLeft, topRight, botLeft, botRight)
-    const wTopLeft = this.worldTiles[y - 1]?.[x - 1] || "";
-    const wTopRight = this.worldTiles[y - 1]?.[x] || "";
-    const wBotLeft = this.worldTiles[y]?.[x - 1] || "";
-    const wBotRight = this.worldTiles[y]?.[x] || "";
+    const wTopLeft = this.worldTiles[type]?.[`${y - 1}/${x - 1}`]
+      ? true
+      : false;
+    const wTopRight = this.worldTiles[type]?.[`${y - 1}/${x}`] ? true : false;
+    const wBotLeft = this.worldTiles[type]?.[`${y}/${x - 1}`] ? true : false;
+    const wBotRight = this.worldTiles[type]?.[`${y}/${x}`] ? true : false;
 
     const checkWorldDirections = (
       tl: boolean,
@@ -169,12 +171,13 @@ export class ManageTiles {
       br: boolean
     ) => {
       return (
-        !!wTopLeft === tl &&
-        !!wTopRight === tr &&
-        !!wBotLeft === bl &&
-        !!wBotRight === br
+        wTopLeft === tl &&
+        wTopRight === tr &&
+        wBotLeft === bl &&
+        wBotRight === br
       );
     };
+
     let displayTile: keyof Tile | null = null;
     let rotation = 0;
     switch (true) {
@@ -262,22 +265,18 @@ export class ManageTiles {
     if (displayTile) {
       this.displayTiles = {
         ...(this.displayTiles || {}),
-        [y]: {
-          ...(this.displayTiles[y] || {}),
-          [x]: { tile: displayTile, rotation }
+        [type]: {
+          ...(this.displayTiles[type] || {}),
+          [`${y}/${x}`]: { tile: displayTile, rotation }
         }
       };
-    } else {
-      if (this.displayTiles[y]?.[x]) {
-        delete this.displayTiles[y][x];
-      }
     }
   }
 
-  updateDisplayTilesAround(x: number, y: number) {
+  updateDisplayTilesAround(x: number, y: number, type: string) {
     for (let dy = 0; dy <= 1; dy++) {
       for (let dx = 0; dx <= 1; dx++) {
-        this.calculateDisplayTile(x + dx, y + dy);
+        this.calculateDisplayTile(x + dx, y + dy, type);
       }
     }
   }
@@ -288,24 +287,27 @@ export class ManageTiles {
 
     this.worldTiles = {
       ...(this.worldTiles || {}),
-      [y / this.size]: {
-        ...(this.worldTiles[y / this.size] || {}),
-        [x / this.size]: type
+      [type]: {
+        ...(this.worldTiles[type] || {}),
+        [`${y / this.size}/${x / this.size}`]: true
       }
     };
-    this.updateDisplayTilesAround(x / this.size, y / this.size);
+    this.updateDisplayTilesAround(x / this.size, y / this.size, type);
   }
 
   removeWorldTile(x: number, y: number) {
     x = x - this.size / 2;
     y = y - this.size / 2;
 
-    if (!this.worldTiles[y / this.size]) return;
-    if (!this.worldTiles[y / this.size][x / this.size]) return;
+    Object.keys(this.worldTiles).forEach((type) => {
+      if (this.worldTiles[type]?.[`${y / this.size}/${x / this.size}`]) {
+        delete this.worldTiles[type][`${y / this.size}/${x / this.size}`];
 
-    delete this.worldTiles[y / this.size][x / this.size];
-
-    this.updateDisplayTilesAround(x / this.size, y / this.size);
+        if (this.displayTiles[type]?.[`${y / this.size}/${x / this.size}`]) {
+          delete this.displayTiles[type][`${y / this.size}/${x / this.size}`];
+        }
+      }
+    });
   }
 
   private getVisibleTilesRange(camera: Camera) {
@@ -329,14 +331,6 @@ export class ManageTiles {
     tile: string,
     displayType: { tile: keyof Tile; rotation: number }
   ) {
-    const displayTypeCases: Record<keyof Tile, string> = {
-      center: "white",
-      corner: "lightgreen",
-      straight: "lightred",
-      nook: "lightyellow",
-      doubleNook: "lightblue"
-    };
-
     this.canvasDraw.drawImage({
       image: this.tiles[tile][displayType.tile],
       width: this.size + 0.5,
@@ -356,46 +350,52 @@ export class ManageTiles {
     ctx.scale(camera.zoom, camera.zoom);
     const visibleTilesRange = this.getVisibleTilesRange(camera);
 
-    for (let y = visibleTilesRange.y.min; y < visibleTilesRange.y.max; y++) {
-      for (let x = visibleTilesRange.x.min; x < visibleTilesRange.x.max; x++) {
-        const tileType = this.worldTiles[y]?.[x];
-        const displayTile_tl = this.displayTiles[y]?.[x];
-        const displayTile_tr = this.displayTiles[y]?.[x + 1];
-        const displayTile_bl = this.displayTiles[y + 1]?.[x];
-        const displayTile_br = this.displayTiles[y + 1]?.[x + 1];
+    for (const tileType in this.worldTiles) {
+      for (let y = visibleTilesRange.y.min; y < visibleTilesRange.y.max; y++) {
+        for (
+          let x = visibleTilesRange.x.min;
+          x < visibleTilesRange.x.max;
+          x++
+        ) {
+          const displayTile_tl = this.displayTiles[tileType]?.[`${y}/${x}`];
+          const displayTile_tr = this.displayTiles[tileType]?.[`${y}/${x + 1}`];
+          const displayTile_bl = this.displayTiles[tileType]?.[`${y + 1}/${x}`];
+          const displayTile_br =
+            this.displayTiles[tileType]?.[`${y + 1}/${x + 1}`];
 
-        if (tileType) {
-          if (displayTile_tl) {
-            this.drawTilePart(
-              x * this.size - this.size / 2,
-              y * this.size - this.size / 2,
-              tileType,
-              displayTile_tl
-            );
-          }
-          if (displayTile_tr) {
-            this.drawTilePart(
-              x * this.size + this.size / 2,
-              y * this.size - this.size / 2,
-              tileType,
-              displayTile_tr
-            );
-          }
-          if (displayTile_bl) {
-            this.drawTilePart(
-              x * this.size - this.size / 2,
-              y * this.size + this.size / 2,
-              tileType,
-              displayTile_bl
-            );
-          }
-          if (displayTile_br) {
-            this.drawTilePart(
-              x * this.size + this.size / 2,
-              y * this.size + this.size / 2,
-              tileType,
-              displayTile_br
-            );
+          if (tileType) {
+            if (displayTile_tl) {
+              this.drawTilePart(
+                x * this.size - this.size / 2,
+                y * this.size - this.size / 2,
+                tileType,
+                displayTile_tl
+              );
+            }
+            if (displayTile_tr) {
+              this.drawTilePart(
+                x * this.size + this.size / 2,
+                y * this.size - this.size / 2,
+                tileType,
+                displayTile_tr
+              );
+            }
+            if (displayTile_bl) {
+              this.drawTilePart(
+                x * this.size - this.size / 2,
+                y * this.size + this.size / 2,
+                tileType,
+                displayTile_bl
+              );
+            }
+            if (displayTile_br) {
+              this.drawTilePart(
+                x * this.size + this.size / 2,
+                y * this.size + this.size / 2,
+                tileType,
+                displayTile_br
+              );
+            }
           }
         }
       }
