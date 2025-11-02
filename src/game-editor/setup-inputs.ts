@@ -43,7 +43,7 @@ export class SetupInputs {
     this.setup();
   }
 
-  notifyChange(event: EventType) {
+  private notifyChange(event: EventType) {
     if (this.onChange) this.onChange(event);
   }
 
@@ -53,8 +53,9 @@ export class SetupInputs {
       this.parent.addEventListener("contextmenu", (e) => e.preventDefault());
     }
 
-    this.parent.addEventListener("keydown", (event) => {
+    globalThis.document.addEventListener("keydown", (event) => {
       const e = event as KeyboardEvent;
+
       if (!this.debugMode) {
         // Prevent default shortcuts
         if (e.key == "F12") {
@@ -84,7 +85,7 @@ export class SetupInputs {
       this.notifyChange("keydown");
     });
 
-    this.parent.addEventListener("keyup", (event) => {
+    globalThis.document.addEventListener("keyup", (event) => {
       const e = event as KeyboardEvent;
       this.keyPresses = this.keyPresses.filter((key) => key !== e.code);
 

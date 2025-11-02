@@ -188,10 +188,16 @@ class GameEditor extends LitElement {
   }
 
   updated() {
-    const moveCameraOnScrollDrag = () => {
+    const moveCamera = () => {
       if (this.inputs) {
         // Start drag
-        if (this.inputs.mouse.scroll && !this.cameraDragActive) {
+        const isDraggingWithScroll = this.inputs.mouse.scroll;
+        const isDraggingWithSpace =
+          this.inputs.keyPresses.includes("Space") && this.inputs.mouse.left;
+
+        const isDragging = isDraggingWithScroll || isDraggingWithSpace;
+
+        if (isDragging && !this.cameraDragActive) {
           this.cameraDragActive = true;
           this.lastDragPos = {
             x: this.inputs.mouse.x,
@@ -205,7 +211,7 @@ class GameEditor extends LitElement {
         }
 
         // Dragging
-        if (this.cameraDragActive && this.inputs.mouse.scroll) {
+        if (this.cameraDragActive && isDragging) {
           document.body.style.cursor = "grabbing";
           if (this.lastDragPos && this.initialCameraPos) {
             const dx =
@@ -223,7 +229,7 @@ class GameEditor extends LitElement {
         }
 
         // End drag
-        if (this.cameraDragActive && !this.inputs.mouse.scroll) {
+        if (this.cameraDragActive && !isDragging) {
           document.body.style.cursor = "default";
           this.cameraDragActive = false;
           this.lastDragPos = null;
@@ -231,6 +237,7 @@ class GameEditor extends LitElement {
         }
       }
     };
+
     const zoomCameraOnMouseWheel = () => {
       if (this.inputs) {
         if (this.inputs.mouse.wheel) {
@@ -284,7 +291,7 @@ class GameEditor extends LitElement {
     if (this.devMode) {
       this.engine.manageTiles.showGrid = true;
       this.engine.showWorldGrid = true;
-      moveCameraOnScrollDrag();
+      moveCamera();
       zoomCameraOnMouseWheel();
       moveTileHighlighted();
       addTitleOnClick();
