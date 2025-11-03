@@ -207,19 +207,46 @@ class GameEditor extends LitElement {
       }
     };
 
-    const zoomCameraOnMouseWheel = () => {
+    const zoomCamera = () => {
+      const zoom = (direction: "in" | "out") => {
+        // Zoom scale based on current zoom
+        // If more zoomed in, the zoom steps are greater
+        // If more zoomed out, the zoom steps are smaller
+        const zoomScaleBase = this.engine.camera.zoom * 0.2;
+
+        this.engine.camera.setZoom({
+          zoom:
+            this.engine.camera.zoom +
+            (direction == "in" ? zoomScaleBase : -zoomScaleBase)
+        });
+      };
+
       if (this.inputs) {
-        if (this.inputs.mouse.wheel) {
-          if (this.inputs.mouse.wheel == "down") {
-            this.engine.camera.setZoom({
-              zoom: this.engine.camera.zoom - 0.1
-            });
+        // ctrl + (+) or (-) keys
+        if (
+          this.inputs.keyPresses.includes("ControlLeft") ||
+          this.inputs.keyPresses.includes("ControlRight")
+        ) {
+          if (
+            this.inputs.keyPresses.includes("Equal") ||
+            this.inputs.keyPresses.includes("Plus")
+          ) {
+            zoom("in");
           }
 
+          if (this.inputs.keyPresses.includes("Minus")) {
+            zoom("out");
+          }
+        }
+
+        // with mouse wheel
+        if (this.inputs.mouse.wheel) {
           if (this.inputs.mouse.wheel == "up") {
-            this.engine.camera.setZoom({
-              zoom: this.engine.camera.zoom + 0.1
-            });
+            zoom("in");
+          }
+
+          if (this.inputs.mouse.wheel == "down") {
+            zoom("out");
           }
         }
       }
@@ -261,7 +288,7 @@ class GameEditor extends LitElement {
       this.engine.manageTiles.showGrid = true;
       this.engine.showWorldGrid = true;
       moveCamera();
-      zoomCameraOnMouseWheel();
+      zoomCamera();
       moveTileHighlighted();
       addTitleOnClick();
     } else {
