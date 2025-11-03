@@ -83,9 +83,39 @@ export class Camera {
     this.applyBounds();
   }
 
-  setZoom({ smooth, zoom }: { smooth?: number; zoom?: number }) {
+  setZoom({
+    smooth,
+    origin,
+    zoom
+  }: {
+    smooth?: number;
+    origin?: { x: number; y: number };
+    zoom?: number;
+  }) {
+    // keep existing smoothing behaviour
     smooth && (this.zoomSmoothing = Math.min(smooth, 1));
-    zoom && (this.targetZoom = Math.max(0.1, zoom));
+
+    if (!zoom) return;
+
+    const newZoom = Math.max(0.1, zoom);
+
+    // If an origin (WORLD coords) is provided, compute the camera position
+    // so the world point at 'origin' stays fixed on the same screen pixel after the zoom.
+    // currentScreen = (origin - cam) * zoom
+    // want: currentScreen = (origin - newCam) * newZoom
+    // => newCam = origin - currentScreen / newZoom
+    if (origin) {
+      const currentScreenX = (origin.x - this.x) * this.zoom;
+      const currentScreenY = (origin.y - this.y) * this.zoom;
+
+      this.x = origin.x - currentScreenX / newZoom;
+      this.y = origin.y - currentScreenY / newZoom;
+
+      // enforce bounds after moving camera
+      this.applyBounds();
+    }
+
+    this.targetZoom = newZoom;
   }
 
   updateZoom() {

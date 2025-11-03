@@ -212,12 +212,19 @@ class GameEditor extends LitElement {
         // Zoom scale based on current zoom
         // If more zoomed in, the zoom steps are greater
         // If more zoomed out, the zoom steps are smaller
-        const zoomScaleBase = this.engine.camera.zoom * 0.2;
+        const zoomScaleBase = this.engine.camera.zoom * 0.1;
 
+        // center camera on mouse position
+        const mousePos = this.engine.camera.screenToWorld(
+          this.inputs!.mouse.x,
+          this.inputs!.mouse.y
+        );
         this.engine.camera.setZoom({
           zoom:
             this.engine.camera.zoom +
-            (direction == "in" ? zoomScaleBase : -zoomScaleBase)
+            (direction == "in" ? zoomScaleBase : -zoomScaleBase),
+          origin: mousePos,
+          smooth: 1
         });
       };
 
