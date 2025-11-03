@@ -50,33 +50,15 @@ export class SetupInputs {
   setup() {
     if (!this.debugMode) {
       // Remove right click action
-      this.parent.addEventListener("contextmenu", (e) => e.preventDefault());
+      globalThis.document.addEventListener("contextmenu", (e) =>
+        e.preventDefault()
+      );
     }
 
     globalThis.document.addEventListener("keydown", (event) => {
       const e = event as KeyboardEvent;
-
-      if (!this.debugMode) {
-        // Prevent default shortcuts
-        if (e.key == "F12") {
-          e.preventDefault();
-        }
-        if (e.key == "123") {
-          e.preventDefault();
-        }
-        if (e.ctrlKey && e.shiftKey && e.key == "I") {
-          e.preventDefault();
-        }
-        if (e.ctrlKey && e.shiftKey && e.key == "C") {
-          e.preventDefault();
-        }
-        if (e.ctrlKey && e.shiftKey && e.key == "J") {
-          e.preventDefault();
-        }
-        if (e.ctrlKey && e.key == "U") {
-          e.preventDefault();
-        }
-      }
+      // Prevent default action to avoid unwanted browser behavior
+      e.preventDefault();
 
       if (this.keyPresses.includes(e.code)) return;
 
